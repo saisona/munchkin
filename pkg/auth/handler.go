@@ -6,6 +6,7 @@ import (
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/telemetry"
 	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func mapRegisterError(err error) error {
@@ -30,8 +31,13 @@ func NewAuthHandler(svc *Service) Handler {
 
 func (h *Handler) Login(c echo.Context) error {
 	reqCtx := c.Request().Context()
+	sp := trace.SpanFromContext(reqCtx)
+	defer sp.End()
+
+	sp.SetName("login")
 	var req AuthRequest
 	if err := c.Bind(&req); err != nil {
+		sp.RecordError(err, trace.WithStackTrace(true))
 		return echo.ErrBadRequest
 	}
 
@@ -41,8 +47,10 @@ func (h *Handler) Login(c echo.Context) error {
 		req.Password,
 	)
 	if err != nil && errors.Is(err, ErrInvalidCredentials) {
+		sp.RecordError(err, trace.WithStackTrace(true))
 		return c.String(400, "invalid credentials")
 	} else if err != nil {
+		sp.RecordError(err, trace.WithStackTrace(true))
 		return err
 	}
 

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"dev.azure.com/saisona/Munchin/munchin-api/pkg/log"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -20,7 +21,7 @@ var (
 	_jsonLogger = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelDebug.Level(),
 	})
-	logger = slog.New(_jsonLogger).WithGroup("Auth")
+	logger = slog.New(log.NewOTelHandler(_jsonLogger)).WithGroup("Auth")
 )
 
 func (fpr *FakePlayerRepo) Create(ctx context.Context, p *Player) error {
@@ -46,8 +47,8 @@ func (fpr *FakePlayerRepo) FindByUsername(ctx context.Context, username string) 
 		bcrypt.DefaultCost,
 	)
 	return &Player{
+		ID:           "fake_id",
 		Username:     username,
-		PlayerID:     "fake_id",
 		PasswordHash: string(hash),
 		CreatedAt:    time.Now(),
 	}, nil

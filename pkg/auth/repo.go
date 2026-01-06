@@ -46,19 +46,19 @@ func (s *Service) Register(
 
 	// 3. Create player
 	player := &Player{
-		PlayerID:     uuid.NewString(),
+		ID:           uuid.NewString(),
 		Username:     username,
 		PasswordHash: string(hash),
 		CreatedAt:    time.Now(),
 	}
-	logger.With(slog.String("playerID", player.PlayerID)).DebugContext(ctx, "player instance creation")
+	logger.With(slog.String("playerID", player.ID)).DebugContext(ctx, "player instance creation")
 
 	if errRepoCreate := s.repo.Create(ctx, player); errRepoCreate != nil {
 		return "", errRepoCreate
 	}
 
 	// 4. Issue JWT
-	token, err := s.ti.Issue(player.PlayerID, s.jwtKey)
+	token, err := s.ti.Issue(player.ID, s.jwtKey)
 	if err != nil {
 		return "", err
 	}
@@ -103,10 +103,10 @@ func (s *Service) Login(ctx context.Context, username, password string) (string,
 		return "", "", ErrInvalidCredentials
 	}
 
-	token, errIssuer := s.ti.Issue(player.PlayerID, s.jwtKey)
+	token, errIssuer := s.ti.Issue(player.ID, s.jwtKey)
 	if errIssuer != nil {
 		return "", "", errIssuer
 	}
 
-	return token, player.PlayerID, nil
+	return token, player.ID, nil
 }

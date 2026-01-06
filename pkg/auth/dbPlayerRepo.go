@@ -39,13 +39,18 @@ func (pr *DBPlayerRepo) UsernameExists(ctx context.Context, username string) (bo
 func (pr *DBPlayerRepo) FindByUsername(ctx context.Context, username string) (*Player, error) {
 	logger.With(slog.String("searched username", username)).DebugContext(ctx, "called FindByUsername")
 	var foundPlayer Player
-	if err := pr.db.Debug().WithContext(ctx).Model(&Player{}).Where("username = ?", username).First(&foundPlayer).Error; err != nil {
+	if err := pr.db.WithContext(ctx).Model(&Player{}).Where("username = ?", username).First(&foundPlayer).Error; err != nil {
 		return nil, err
 	}
 	return &foundPlayer, nil
 }
 
 // FindByID implements [PlayerRepository].
-func (pr *DBPlayerRepo) FindByID(context.Context, string) (*Player, error) {
-	panic("unimplemented")
+func (pr *DBPlayerRepo) FindByID(ctx context.Context, playerID string) (*Player, error) {
+	logger.With(slog.String("id", playerID)).DebugContext(ctx, "called FindByID")
+	var foundPlayer Player
+	if err := pr.db.WithContext(ctx).Model(&Player{}).Where("id = ?", playerID).First(&foundPlayer).Error; err != nil {
+		return nil, err
+	}
+	return &foundPlayer, nil
 }
