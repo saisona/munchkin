@@ -3,7 +3,7 @@ auth_enabled: false
 
 server:
   http_listen_port: 3200
-  log_level: debug
+  log_level: info
 
 distributor:
   receivers:
@@ -11,6 +11,26 @@ distributor:
       protocols:
         grpc:
           endpoint: "0.0.0.0:4317"
+
+metrics_generator:
+  ring:
+    kvstore:
+      store: inmemory
+
+  processor:
+    service_graphs: {}
+    span_metrics: {}
+
+  storage:
+    path: /var/tempo/generator
+
+overrides:
+  defaults:
+    metrics_generator:
+      processors:
+        - service-graphs
+        - span-metrics
+        - local-blocks
 
 storage:
   trace:
