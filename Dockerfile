@@ -1,6 +1,3 @@
-# We establish a separate stage for building the app.
-# Next, we embrace the powerful and versatile Debian base image 🐳
-# This choice grants us easier access to essential build utilities and a robust development environment.
 FROM golang:1.25-alpine AS build
 WORKDIR /usr/app
 
@@ -65,4 +62,5 @@ COPY --from=build-production /usr/app/app app
 # By exposing port 1337, we signal to the Docker environment the intended entry point for our application.
 EXPOSE 1337
 
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 CMD [ "wget --spider -q  http://localhost:1337/healthz || exit 1" ]
 CMD ["/app"]

@@ -15,4 +15,4 @@
 # vendor/
 .data
 .DS_Store
-.env
+**.env
