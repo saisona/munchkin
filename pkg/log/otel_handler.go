@@ -2,7 +2,6 @@ package log
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	"go.opentelemetry.io/otel/trace"
@@ -24,7 +23,6 @@ func (h *OTelHandler) Handle(ctx context.Context, r slog.Record) error {
 	span := trace.SpanFromContext(ctx)
 	if span != nil {
 		sc := span.SpanContext()
-		fmt.Println("sc=>", sc)
 		if sc.IsValid() {
 			r.AddAttrs(
 				slog.String("trace_id", sc.TraceID().String()),
