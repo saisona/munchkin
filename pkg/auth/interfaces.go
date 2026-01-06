@@ -1,6 +1,10 @@
 package auth
 
-import "context"
+import (
+	"context"
+
+	"go.opentelemetry.io/otel/trace"
+)
 
 type AuthRequest struct {
 	Username string `json:"username"`
@@ -19,11 +23,12 @@ type PlayerRepository interface {
 }
 
 type TokenIssuer interface {
-	Issue(playerID string, key []byte) (string, error)
+	Issue(string, []byte) (string, error)
 }
 
 type Service struct {
 	repo   PlayerRepository
+	tracer trace.Tracer
 	ti     TokenIssuer
 	jwtKey []byte
 }

@@ -8,6 +8,8 @@ import (
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/telemetry"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -17,17 +19,21 @@ var (
 )
 
 func NewService(r PlayerRepository, ti TokenIssuer, jwtKey []byte) *Service {
-	return &Service{repo: r, ti: ti, jwtKey: jwtKey}
+	return &Service{repo: r, ti: ti, jwtKey: jwtKey, tracer: telemetry.DefaultSvcTracer}
 }
 
 func (s *Service) Register(
 	ctx context.Context,
 	username, password string,
 ) (string, error) {
+	ctxSp, sp := s.tracer.Start(ctx, "service.register")
+	defer sp.End()
+
 	// 1. Check uniqueness
-	exists, err := s.repo.UsernameExists(ctx, username)
+	exists, err := s.repo.UsernameExists(ctxSp, username)
 	if err != nil {
-		logger.With(slog.String("error", err.Error())).ErrorContext(ctx, "err on s.repo.UsernameExists")
+		sp.RecordError(err)
+		logger.With(slog.String("error", err.Error())).ErrorContext(ctxSp, "err on s.repo.UsernameExists")
 		return "", err
 	}
 	if exists {
@@ -41,6 +47,7 @@ func (s *Service) Register(
 		bcrypt.DefaultCost,
 	)
 	if err != nil {
+		sp.RecordError(err, trace.WithStackTrace(true))
 		return "", err
 	}
 
@@ -51,15 +58,17 @@ func (s *Service) Register(
 		PasswordHash: string(hash),
 		CreatedAt:    time.Now(),
 	}
-	logger.With(slog.String("playerID", player.ID)).DebugContext(ctx, "player instance creation")
+	logger.With(slog.String("playerID", player.ID)).DebugContext(ctxSp, "player instance creation")
 
-	if errRepoCreate := s.repo.Create(ctx, player); errRepoCreate != nil {
+	if errRepoCreate := s.repo.Create(ctxSp, player); errRepoCreate != nil {
+		sp.RecordError(err)
 		return "", errRepoCreate
 	}
 
 	// 4. Issue JWT
 	token, err := s.ti.Issue(player.ID, s.jwtKey)
 	if err != nil {
+		sp.RecordError(err)
 		return "", err
 	}
 
@@ -88,10 +97,17 @@ func (s *Service) Register(
 // Login is transport-agnostic and does not perform any HTTP-specific
 // behavior such as setting cookies or headers.
 func (s *Service) Login(ctx context.Context, username, password string) (string, string, error) {
-	player, errRepoFind := s.repo.FindByUsername(ctx, username)
+	ctxSp, span := s.tracer.Start(ctx, "service.login")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("auth.username", username),
+	)
+
+	player, errRepoFind := s.repo.FindByUsername(ctxSp, username)
 	if errRepoFind != nil {
 		// Do NOT leak existence information
-		logger.With(slog.String("request_username", username)).DebugContext(ctx, "FindByUsername failed")
+		logger.With(slog.String("request_username", username)).DebugContext(ctxSp, "FindByUsername failed")
 		return "", "", ErrInvalidCredentials
 	}
 
