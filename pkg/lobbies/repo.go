@@ -22,16 +22,18 @@ func (s Service) CreateLobby(ctx context.Context, requesterID string) (string, e
 	if errFindPlayer != nil {
 		return "", errFindPlayer
 	}
+	players := make([]*auth.Player, 0)
+	players = append(players, p)
 	l := &Lobby{
-		LobbyID:    uuid.NewString(),
-		Players:    []auth.Player{*p},
+		ID:         uuid.NewString(),
+		Players:    players,
 		CreatedAt:  time.Now(),
 		FinishedAt: time.Time{},
 	}
 	if err := s.repo.Create(ctx, l); err != nil {
 		return "", err
 	}
-	return l.LobbyID, nil
+	return l.ID, nil
 }
 
 func (s Service) StartGame(ctx context.Context, lobbyID string) error {
@@ -39,14 +41,10 @@ func (s Service) StartGame(ctx context.Context, lobbyID string) error {
 }
 
 func (s Service) JoinGame(ctx context.Context, lobbyID string, playerID string) error {
-	lobby, err := s.repo.Find(ctx, lobbyID)
-	if err != nil {
-		return err
-	}
 	p, errFindPlayer := s.players.FindByID(ctx, playerID)
 	if errFindPlayer != nil {
 		return errFindPlayer
 	}
 
-	return s.repo.AddPlayer(ctx, lobby, p)
+	return s.repo.AddPlayer(ctx, lobbyID, p)
 }

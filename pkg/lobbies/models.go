@@ -6,9 +6,18 @@ import (
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/auth"
 )
 
+type LobbyState string
+
+const (
+	StateAvailable LobbyState = "ACTIVE"
+	StateFull      LobbyState = "FULL"
+	StateInGame    LobbyState = "IN_GAME"
+)
+
 type Lobby struct {
-	LobbyID    string        `json:"lobby_id"   gorm:"primaryKey"`
-	CreatedAt  time.Time     `json:"createAt"`
-	FinishedAt time.Time     `json:"finishedAt"`
-	Players    []auth.Player `json:"players"    gorm:"foreignKey:PlayerID;references:LobbyID"`
+	ID         string         `json:"lobby_id"   gorm:"primaryKey"`
+	State      LobbyState     `json:"state"`
+	CreatedAt  time.Time      `json:"createAt"`
+	FinishedAt time.Time      `json:"finishedAt"`
+	Players    []*auth.Player `json:"players"    gorm:"many2many:lobby_players"`
 }
