@@ -6,11 +6,8 @@ volumes:
   prometheus_data: {}
   grafana_data: {}
   minio_data: {}
+  tempo_data: {}
   postgresql_data:
-    driver: local
-  pgadmin_working_dir:
-    driver: local
-  pgadmin_config_dir:
     driver: local
 
 services:
@@ -28,19 +25,6 @@ services:
       - "8080:8080"
     networks:
       - monitoring
-    develop:
-      watch:
-        - action: sync
-          path: pkg
-          target: pkg
-          ignore:
-            - alertmanager
-            - loki
-            - grafana
-            - example.log
-        - action: rebuild
-          path: go.mod
-
 
   postgres:
      image: postgres:17.4-alpine
@@ -61,6 +45,8 @@ services:
   metabase:
     image: metabase/metabase:latest # To download the latest image
     container_name: metabase
+    networks:
+      - monitoring
     depends_on:
       - postgres
     ports:
@@ -119,18 +105,6 @@ services:
        - monitoring
     restart: unless-stopped 
 
-  minio:
-    image: minio/minio
-    container_name: minio
-    entrypoint: [""]
-    command: ["sh", "-c", "mkdir -p /data/mimir && minio server --quiet /data"]
-    ports:
-      - "9001:9001"
-    environment:
-      - MINIO_ROOT_USER=mimir
-      - MINIO_ROOT_PASSWORD=supersecret
-    volumes:
-      - minio_data:/data
 
   loki:
     image: grafana/loki:2.9.4
@@ -145,49 +119,36 @@ services:
     restart: unless-stopped
 
   tempo:
-    image: grafana/tempo
-    container_name: tempo
-    command: -config.file=/etc/tempo/tempo.yml
+    image: grafana/tempo:latest
+    command: ["-config.file=/etc/tempo.yaml"]
     volumes:
-      - ./configs/tempo.yml:/etc/tempo/tempo.yml
+      - ./configs/tempo.yml:/etc/tempo.yaml
+      - tempo_data:/var/tempo
     ports:
-      - "3200:3200"   # Tempo HTTP
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
-    networks:
-      - monitoring
-    restart: unless-stopped
+      - "3200:3200"
+    networks: [monitoring]
 
   alloy:
-    image: grafana/alloy:v1.12.1
-    container_name: alloy
-    networks:
-      - monitoring
+    image: grafana/alloy:latest
+    command: ["run", "/etc/alloy.hcl"]
     volumes:
-      - ./configs/config.alloy:/etc/alloy/config.alloy
-    command:
-      - run
-      - /etc/alloy/config.alloy
-      - --storage.path=/var/lib/alloy/data
-      - --server.http.listen-addr=0.0.0.0:12345
+      - ./configs/alloy.hcl:/etc/alloy.hcl
     ports:
-      - "12345:12345"
-      - "4319:4319"
-      - "4317:4317"   # OTLP gRPC
+      - "4317:4317"
+      - "4318:4318"
     depends_on:
       - tempo
+    networks: [monitoring]
 
-
-  # promtail:
-  #   image: grafana/promtail:3.2.1
-  #   container_name: promtail
-  #   command: -config.file=/etc/promtail/promtail.yml
+  # minio:
+  #   image: minio/minio
+  #   container_name: minio
+  #   entrypoint: [""]
+  #   command: ["sh", "-c", "mkdir -p /data/mimir && minio server --quiet /data"]
+  #   ports:
+  #     - "9001:9001"
+  #   environment:
+  #     - MINIO_ROOT_USER=mimir
+  #     - MINIO_ROOT_PASSWORD=supersecret
   #   volumes:
-  #     - /var/lib/docker/containers:/var/lib/docker/containers:ro
-  #     - /var/run/docker.sock:/var/run/docker.sock:ro
-  #     - ./promtail.yml:/etc/promtail/promtail.yml
-  #   networks:
-  #     - monitoring
-  #   depends_on:
-  #     - loki
-  #   restart: unless-stopped
+  #     - minio_data:/data
