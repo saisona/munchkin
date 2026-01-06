@@ -39,6 +39,16 @@ var connectionString = fmt.Sprintf(
 
 func main() {
 	telemetry.Register()
+	ctx := context.Background()
+
+	shutdown, errInitTracer := telemetry.InitTracer(
+		ctx,
+		os.Getenv("OTEL_SERVICE_NAME"),
+		os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
+	)
+	if errInitTracer != nil {
+		panic(errInitTracer)
+	}
 
 	e := echo.New()
 
@@ -94,5 +104,9 @@ func main() {
 	// 1. Stop HTTP server (lets in-flight requests finish)
 	if err := e.Shutdown(shutdownCtx); err != nil {
 		slog.ErrorContext(shutdownCtx, err.Error())
+	}
+
+	if err := shutdown(shutdownCtx); err != nil {
+		panic(err)
 	}
 }
