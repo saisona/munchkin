@@ -1,25 +1,33 @@
+logging {
+  level= "debug"
+}
+
+tracing {
+	// Write all spans. Don't do this in production!
+	sampling_fraction = 1.0
+
+	// Forward internal spans to the local Tempo instance.
+	write_to = [otelcol.exporter.otlp.tempo.input]
+}
+
 loki.write "local" {
-    endpoint {
-        url = "http://loki:3100/loki/api/v1/push"
-    }
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
 }
 
 otelcol.receiver.otlp "otlp_receiver" {
-  grpc {
-    endpoint = "0.0.0.0:4317"
-  }
-  http {
-    endpoint = "0.0.0.0:4318"
-  }
+  grpc { }
+  http { }
 
   output {
-    traces = [otelcol.exporter.otlp.internal.input,]
+    traces = [otelcol.exporter.otlp.tempo.input,]
   }
 }
 
-otelcol.exporter.otlp "internal" {
+otelcol.exporter.otlp "tempo" {
   client {
-    endpoint = "tempo:4317"
+    endpoint = "http://tempo:4317"
     tls {
 			insecure = true
 		}
