@@ -35,5 +35,4 @@ steps:
         dep ensure
     fi
     go build -v ./...
-  workingDirectory: '$(system.defaultWorkingDirectory)'
   displayName: 'Get dependencies, then build'
