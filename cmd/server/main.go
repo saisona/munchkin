@@ -11,9 +11,11 @@ import (
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/api"
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/auth"
+	"dev.azure.com/saisona/Munchin/munchin-api/pkg/log"
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/telemetry"
 	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
@@ -39,17 +41,27 @@ func main() {
 	telemetry.Register()
 
 	e := echo.New()
-	e.Use(echoprometheus.NewMiddleware("munchin")) // adds middleware to gather metrics
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{})))
 
 	// Base middleware
-	e.Use(middleware.Recover())
-	e.Use(middleware.RequestID())
-	e.Use(middleware.Secure())
-	e.Use(middleware.Gzip())
-	e.Use(middleware.RequestLogger())
+	e.Use(
+		echoprometheus.NewMiddleware("munchin"),
+		otelecho.Middleware("munchin"),
+		middleware.Recover(),
+		middleware.RequestID(),
+		middleware.Secure(),
+		middleware.Gzip(),
+		middleware.RequestLogger(),
+	)
+	e.HideBanner = true
+
+	logHandler := log.NewOTelHandler(
+		slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{}),
+	)
+	defaultLogger := slog.New(logHandler)
+	slog.SetDefault(defaultLogger)
 
 	e.GET("/metrics", echoprometheus.NewHandler()) // adds route to serve gathered metrics
+	e.GET("/healthz", func(c echo.Context) error { return c.NoContent(http.StatusNoContent) })
 
 	jwtKey := []byte(os.Getenv("JWT_SECRET"))
 	db, err := initDatabase(connectionString)
