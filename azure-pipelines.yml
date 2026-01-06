@@ -14,11 +14,11 @@ variables:
   GOBIN:  '$(system.defaultWorkingDirectory)/bin' # Go binaries path
 
 steps:
-- script: |
-    mkdir -p '$(GOBIN)'
-    echo '##vso[task.prependpath]$(GOBIN)'
+- task: GoTool@0
   displayName: 'Set up the Go workspace'
-
+  inputs:
+    version: 1.25.5
+    goPath: $(System.DefaultWorkingDirectory)/go
 - script: |
     ls -la $(system.defaultWorkingDirectory)
   displayName: 'List files in the working directory'
