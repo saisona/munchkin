@@ -13,6 +13,11 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 )
 
+var (
+	DefaultSvcTracer  = otel.Tracer("munchin/svc")
+	DefaultRepoTracer = otel.Tracer("munchin/repo")
+)
+
 func InitTracer(
 	ctx context.Context,
 	serviceName string,
@@ -22,6 +27,7 @@ func InitTracer(
 	client := otlptracegrpc.NewClient(
 		otlptracegrpc.WithEndpoint(otlpEndpoint), // e.g. "localhost:4317"
 		otlptracegrpc.WithInsecure(),             // use TLS in production
+		otlptracegrpc.WithCompressor("gzip"),
 	)
 
 	exporter, err := otlptrace.New(ctx, client)
@@ -33,6 +39,8 @@ func InitTracer(
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			semconv.ServiceName(serviceName),
+			semconv.ServerPort(1337),
+			semconv.ContainerImageName("app"),
 		),
 	)
 	if err != nil {
