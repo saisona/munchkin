@@ -11,6 +11,7 @@ import (
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
+	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/api"
@@ -41,14 +42,18 @@ func main() {
 	telemetry.Register()
 	ctx := context.Background()
 
-	shutdown, errInitTracer := telemetry.InitTracer(
-		ctx,
-		os.Getenv("OTEL_SERVICE_NAME"),
-		os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
-	)
+	svcName := os.Getenv("OTEL_SERVICE_NAME")
+	otlpEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+
+	shutdownTracer, errInitTracer := telemetry.InitTracer(ctx, svcName, otlpEndpoint)
 	if errInitTracer != nil {
 		panic(errInitTracer)
 	}
+	lpShutdown, errInitLogger := log.InitOTelLogs(ctx, svcName, otlpEndpoint)
+	if errInitLogger != nil {
+		panic(errInitLogger)
+	}
+	slog.Info("otel log pipeline initialized")
 
 	e := echo.New()
 
@@ -64,11 +69,8 @@ func main() {
 	)
 	e.HideBanner = true
 
-	logHandler := log.NewOTelHandler(
-		slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{}),
-	)
-	defaultLogger := slog.New(logHandler)
-	slog.SetDefault(defaultLogger)
+	slog.SetDefault(slog.New(otelslog.NewHandler(svcName)))
+	slog.Info(">>> slog bridge installed")
 
 	e.GET("/metrics", echoprometheus.NewHandler()) // adds route to serve gathered metrics
 	e.GET("/healthz", func(c echo.Context) error { return c.NoContent(http.StatusNoContent) })
@@ -85,28 +87,35 @@ func main() {
 		return c.NoContent(404)
 	})
 
-	sigCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
+	sigCtx, stop := signal.NotifyContext(ctx, os.Interrupt, os.Kill)
 	defer stop()
 
 	go func() {
 		if err := e.Start(":1337"); err != nil &&
 			!errors.Is(err, http.ErrServerClosed) {
-			e.Logger.Fatal(err)
+			slog.ErrorContext(
+				sigCtx,
+				"an error occured during creation of the server",
+				slog.Any("error", err),
+			)
 		}
 	}()
 
 	<-sigCtx.Done()
 	slog.Info("Shutting down the server")
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(sigCtx, 5*time.Second)
 	defer cancel()
 
 	// 1. Stop HTTP server (lets in-flight requests finish)
-	if err := e.Shutdown(shutdownCtx); err != nil {
-		slog.ErrorContext(shutdownCtx, err.Error())
+	if errServerShutdown := e.Shutdown(shutdownCtx); errServerShutdown != nil {
+		panic(errServerShutdown)
+	}
+	if errLoggerShutdown := lpShutdown(ctx); errLoggerShutdown != nil {
+		panic(errLoggerShutdown)
 	}
 
-	if err := shutdown(shutdownCtx); err != nil {
-		panic(err)
+	if errTracerShudown := shutdownTracer(shutdownCtx); errTracerShudown != nil {
+		panic(errTracerShudown)
 	}
 }
