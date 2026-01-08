@@ -10,17 +10,10 @@ import (
 	"time"
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/auth"
-	"dev.azure.com/saisona/Munchin/munchin-api/pkg/log"
+	"go.opentelemetry.io/contrib/bridges/otelslog"
 )
 
-var (
-	_jsonLogger = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level:     slog.LevelDebug.Level(),
-		AddSource: true,
-	})
-
-	logger = slog.New(log.NewOTelHandler(_jsonLogger)).WithGroup("Lobby")
-)
+var logger = slog.New(otelslog.NewHandler("munchin")).WithGroup("Lobby")
 
 var _baseFakeDate = []Lobby{
 	{Players: make([]*auth.Player, 0), ID: "fake_id", State: StateAvailable, CreatedAt: time.Now()},

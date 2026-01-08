@@ -40,6 +40,10 @@ func (s Service) StartGame(ctx context.Context, lobbyID string) error {
 	return s.repo.StartGame(ctx, lobbyID)
 }
 
+func (s Service) StopGame(ctx context.Context, lobbyID string) error {
+	return nil
+}
+
 func (s Service) JoinGame(ctx context.Context, lobbyID string, playerID string) error {
 	p, errFindPlayer := s.players.FindByID(ctx, playerID)
 	if errFindPlayer != nil {

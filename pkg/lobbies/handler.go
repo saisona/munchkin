@@ -1,17 +1,20 @@
 package lobbies
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
 
+	"dev.azure.com/saisona/Munchin/munchin-api/pkg/game"
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/telemetry"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 )
 
 type Handler struct {
-	s *Service
+	s  *Service
+	gh game.GameHub
 }
 
 var (
@@ -22,17 +25,16 @@ var (
 	ErrFullLobby            = errors.New("cannot join a full lobby")
 )
 
-// func mapRegisterError(err error) error {
-// 	switch {
-// 	case errors.Is(err, ErrFullLobby):
-// 		return echo.NewHTTPError(
-// 			http.StatusLocked,
-// 			ErrFullLobby,
-// 		)
-// 	default:
-// 		return echo.ErrInternalServerError
-// 	}
-// }
+func mapRegisterError(err error) error {
+	switch {
+	case errors.Is(err, ErrFullLobby):
+		return echo.NewHTTPError(http.StatusLocked, ErrFullLobby)
+	case errors.Is(err, ErrPlayerAlreadyInLobby):
+		return echo.NewHTTPError(http.StatusNotModified, ErrPlayerAlreadyInLobby)
+	default:
+		return echo.ErrInternalServerError
+	}
+}
 
 func NewLobbyHandler(svc *Service) Handler {
 	return Handler{s: svc}
@@ -77,9 +79,10 @@ func (h Handler) HandleStartGame(c echo.Context) error {
 		}
 		return c.JSON(400, lcr)
 	}
-	telemetry.LobbyActive.Inc()
 
-	// TODO: handle WebSocket
+	defaultCtx := context.Background()
+	go h.s.StopGame(defaultCtx, lobbyID)
+	telemetry.LobbyActive.Inc()
 	return nil
 }
 
@@ -91,6 +94,9 @@ func (h Handler) HandleJoinGame(c echo.Context) error {
 
 	playerID := c.Get("playerID").(string)
 	logger.With(slog.String("id", lobbyID), slog.String("playerID", playerID)).DebugContext(c.Request().Context(), "game joined")
+	if errJoinGame := h.s.JoinGame(c.Request().Context(), lobbyID, playerID); errJoinGame != nil {
+		return mapRegisterError(errJoinGame)
+	}
 
 	return nil
 }
