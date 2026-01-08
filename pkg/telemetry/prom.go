@@ -24,35 +24,31 @@ var (
 )
 
 var (
-	LobbyActive = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: "munchin",
-		Subsystem: "lobby",
-		Name:      "active",
-		Help:      "Number of currently active lobbies.",
-	})
-	LobbyCreatedTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "munchin",
-		Subsystem: "lobby",
-		Name:      "created_total",
-		Help:      "Total number of lobbies created.",
-	})
-	LobbyClosedTotal = prometheus.NewCounterVec(
+	PlayersDisconnected = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: "munchin",
-			Subsystem: "lobby",
-			Name:      "closed_total",
-			Help:      "Total number of closed lobbies by reason.",
-		},
-		[]string{"reason"},
-	)
+			Subsystem: "game",
+			Name:      "player_disconnected",
+			Help:      "Total number of player disconnected.",
+		})
+	PlayersConnected = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace: "munchin",
+		Subsystem: "game",
+		Name:      "player_connected",
+	})
+	RoomStarted = prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace: "munchin",
+		Subsystem: "game",
+		Name:      "room_started",
+	})
 )
 
 func Register() {
 	prometheus.MustRegister(
 		AuthFailures,
 		AuthSuccess,
-		LobbyActive,
-		LobbyClosedTotal,
-		LobbyCreatedTotal,
 	)
+
+	MustRegisterGameMetrics(prometheus.DefaultRegisterer)
+	MustRegisterLobbyMetrics(prometheus.DefaultRegisterer)
 }
