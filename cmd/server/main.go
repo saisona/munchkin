@@ -11,12 +11,10 @@ import (
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
-	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/api"
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/auth"
-	"dev.azure.com/saisona/Munchin/munchin-api/pkg/log"
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/telemetry"
 	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
@@ -38,26 +36,27 @@ var connectionString = fmt.Sprintf(
 	os.Getenv("POSTGRES_DB"),
 )
 
+var _jsonLogger = slog.NewJSONHandler(os.Stdout, nil)
+
 func main() {
-	telemetry.Register()
 	ctx := context.Background()
 
 	svcName := os.Getenv("OTEL_SERVICE_NAME")
 	otlpEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 
+	// 2. Install slog bridge IMMEDIATELY
+	slog.SetDefault(slog.New(_jsonLogger))
+
+	// 3. NOW tracing (traces don't affect slog)
+	telemetry.Register()
 	shutdownTracer, errInitTracer := telemetry.InitTracer(ctx, svcName, otlpEndpoint)
 	if errInitTracer != nil {
 		panic(errInitTracer)
 	}
-	lpShutdown, errInitLogger := log.InitOTelLogs(ctx, svcName, otlpEndpoint)
-	if errInitLogger != nil {
-		panic(errInitLogger)
-	}
-	slog.Info("otel log pipeline initialized")
 
+	// 4. Everything else AFTER
 	e := echo.New()
 
-	// Base middleware
 	e.Use(
 		echoprometheus.NewMiddleware("munchin"),
 		otelecho.Middleware("munchin"),
@@ -65,12 +64,9 @@ func main() {
 		middleware.RequestID(),
 		middleware.Secure(),
 		middleware.Gzip(),
-		middleware.RequestLogger(),
+		middleware.RequestLogger(), // ← NOW it uses OTEL slog
 	)
 	e.HideBanner = true
-
-	slog.SetDefault(slog.New(otelslog.NewHandler(svcName)))
-	slog.Info(">>> slog bridge installed")
 
 	e.GET("/metrics", echoprometheus.NewHandler()) // adds route to serve gathered metrics
 	e.GET("/healthz", func(c echo.Context) error { return c.NoContent(http.StatusNoContent) })
@@ -111,10 +107,6 @@ func main() {
 	if errServerShutdown := e.Shutdown(shutdownCtx); errServerShutdown != nil {
 		panic(errServerShutdown)
 	}
-	if errLoggerShutdown := lpShutdown(ctx); errLoggerShutdown != nil {
-		panic(errLoggerShutdown)
-	}
-
 	if errTracerShudown := shutdownTracer(shutdownCtx); errTracerShudown != nil {
 		panic(errTracerShudown)
 	}
