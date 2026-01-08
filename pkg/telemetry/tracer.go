@@ -27,7 +27,6 @@ func InitTracer(
 	client := otlptracegrpc.NewClient(
 		otlptracegrpc.WithEndpoint(otlpEndpoint), // e.g. "localhost:4317"
 		otlptracegrpc.WithInsecure(),             // use TLS in production
-		otlptracegrpc.WithCompressor("gzip"),
 	)
 
 	exporter, err := otlptrace.New(ctx, client)
