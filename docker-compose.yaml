@@ -130,10 +130,16 @@ services:
 
   alloy:
     image: grafana/alloy:latest
-    command: ["run", "/etc/alloy.hcl"]
+    command: 
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy.hcl
     volumes:
       - ./configs/alloy.hcl:/etc/alloy.hcl
+      - /var/run/docker.sock:/var/run/docker.sock:rw
     ports:
+      - "12345:12345"
       - "4317:4317"
       - "4318:4318"
     depends_on:
