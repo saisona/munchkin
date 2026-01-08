@@ -34,7 +34,6 @@ func (h *Handler) Login(c echo.Context) error {
 	sp := trace.SpanFromContext(reqCtx)
 	defer sp.End()
 
-	sp.SetName("login")
 	var req AuthRequest
 	if err := c.Bind(&req); err != nil {
 		sp.RecordError(err, trace.WithStackTrace(true))
