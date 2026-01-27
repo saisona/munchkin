@@ -63,5 +63,4 @@ require (
 	google.golang.org/protobuf v1.36.10 // indirect
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
-	gorm.io/plugin/prometheus v0.1.0
 )
