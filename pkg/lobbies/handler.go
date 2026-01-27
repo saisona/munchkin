@@ -3,8 +3,10 @@ package lobbies
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/game"
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/telemetry"
@@ -21,7 +23,7 @@ var (
 	ErrMissingLobby         = errors.New("parameter lobby not provided")
 	ErrUnknownLobby         = errors.New("requested lobby not found or game already started")
 	ErrPlayerAlreadyInLobby = errors.New("cannot join an already joined game")
-	ErrLobbyAlreadyStarted  = errors.New("game is already started.")
+	ErrLobbyAlreadyStarted  = errors.New("game is already started")
 	ErrFullLobby            = errors.New("cannot join a full lobby")
 )
 
@@ -36,8 +38,8 @@ func mapRegisterError(err error) error {
 	}
 }
 
-func NewLobbyHandler(svc *Service) Handler {
-	return Handler{s: svc}
+func NewLobbyHandler(svc *Service, gh game.GameHub) Handler {
+	return Handler{s: svc, gh: gh}
 }
 
 func (h Handler) HandleNewLobby(c echo.Context) error {
@@ -53,6 +55,19 @@ func (h Handler) HandleNewLobby(c echo.Context) error {
 	}
 
 	logger.With(slog.String("id", lobbyID)).DebugContext(c.Request().Context(), "lobby created")
+	// NOTE: Should the GameState be given by the handler ? I think not .. but.... who knows
+	// TODO: better handle creation of the playerDTO when creating the ROOM
+	// 1. create the Player DTO
+	// 2. pre-load or not his hand
+	_, errCreateRoom := h.gh.CreateRoom(lobbyID, game.NewGameState(fmt.Sprintf("gs-%s", playerID), []*game.Player{{
+		ID:    playerID,
+		Name:  playerID,
+		Score: 0,
+		Hand:  []game.Card{{Name: "fake_card", ID: "fake_card_id"}},
+	}}))
+	if errCreateRoom != nil {
+		return errCreateRoom
+	}
 	telemetry.LobbyCreatedTotal.Inc()
 	lcr := LobbyCreationResponse{
 		LobbyID: lobbyID,
@@ -74,7 +89,7 @@ func (h Handler) HandleStartGame(c echo.Context) error {
 	logger.With(slog.String("id", lobbyID)).DebugContext(ctx, "start game requested")
 	if errStartGame := h.s.StartGame(ctx, lobbyID); errStartGame != nil {
 		lcr := LobbyCreationResponse{
-			LobbyID: "",
+			LobbyID: lobbyID,
 			Error:   errStartGame.Error(),
 		}
 		return c.JSON(400, lcr)
@@ -87,16 +102,72 @@ func (h Handler) HandleStartGame(c echo.Context) error {
 }
 
 func (h Handler) HandleJoinGame(c echo.Context) error {
+	ctx := c.Request().Context()
 	lobbyID := c.Param("id")
+	playerID := c.Get("playerID").(string)
 	if lobbyID == "" {
+		logger.With(slog.String("playerID", playerID)).ErrorContext(ctx, "missing param :id for the lobby in HandleJoinGame")
 		return ErrMissingLobby
 	}
 
-	playerID := c.Get("playerID").(string)
-	logger.With(slog.String("id", lobbyID), slog.String("playerID", playerID)).DebugContext(c.Request().Context(), "game joined")
-	if errJoinGame := h.s.JoinGame(c.Request().Context(), lobbyID, playerID); errJoinGame != nil {
+	logger.With(slog.String("id", lobbyID), slog.String("playerID", playerID)).DebugContext(ctx, "joining game")
+	if errJoinGame := h.s.JoinGame(ctx, lobbyID, playerID); errJoinGame != nil {
+		logger.With(slog.String("error", errJoinGame.Error())).ErrorContext(ctx, "joining game failed")
+
 		return mapRegisterError(errJoinGame)
 	}
-
+	telemetry.GameRoomJoins.Inc()
 	return nil
+}
+
+func (h Handler) GetAllLobbies(c echo.Context) error {
+	lobbies, err := h.s.repo.Fetch(c.Request().Context())
+	if err != nil {
+		return mapRegisterError(err)
+	}
+	return c.JSON(200, lobbies)
+}
+
+// handler/lobby.go
+
+type LobbyListResponse struct {
+	Items   []LobbyListItem `json:"items"`
+	Limit   int             `json:"limit"`
+	Offset  int             `json:"offset"`
+	HasMore bool            `json:"hasMore"`
+}
+
+func (h *Handler) ListLobbies(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	limit, err := strconv.Atoi(c.QueryParam("limit"))
+	if err != nil || limit <= 0 {
+		limit = 20
+	}
+
+	offset, err := strconv.Atoi(c.QueryParam("offset"))
+	if err != nil || offset < 0 {
+		offset = 0
+	}
+
+	// fetch limit + 1 to detect "has more"
+	items, err := h.s.repo.ListForLobbyScene(ctx, limit+1, offset)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	hasMore := false
+	if len(items) > limit {
+		hasMore = true
+		items = items[:limit]
+	}
+
+	resp := LobbyListResponse{
+		Items:   items,
+		Limit:   limit,
+		Offset:  offset,
+		HasMore: hasMore,
+	}
+
+	return c.JSON(http.StatusOK, resp)
 }

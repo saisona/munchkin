@@ -10,10 +10,15 @@ import (
 	"time"
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/auth"
-	"go.opentelemetry.io/contrib/bridges/otelslog"
 )
 
-var logger = slog.New(otelslog.NewHandler("munchin")).WithGroup("Lobby")
+var (
+	_jsonLogger = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})
+
+	logger = slog.New(_jsonLogger).WithGroup("lobby")
+)
 
 var _baseFakeDate = []Lobby{
 	{Players: make([]*auth.Player, 0), ID: "fake_id", State: StateAvailable, CreatedAt: time.Now()},
@@ -41,6 +46,16 @@ var _baseFakeDate = []Lobby{
 
 type FakeLobbyRepo struct {
 	fakeDate []Lobby
+}
+
+// ListForLobbyScene implements [LobbyRepository].
+func (fpr FakeLobbyRepo) ListForLobbyScene(context.Context, int, int) ([]LobbyListItem, error) {
+	panic("unimplemented")
+}
+
+// Fetch implements [LobbyRepository].
+func (fpr FakeLobbyRepo) Fetch(_ context.Context) ([]Lobby, error) {
+	return _baseFakeDate, nil
 }
 
 // Create implements [LobbyRepository].

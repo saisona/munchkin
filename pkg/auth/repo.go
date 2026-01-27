@@ -37,7 +37,7 @@ func (s *Service) Register(
 		return "", err
 	}
 	if exists {
-		telemetry.AuthFailures.Inc()
+		telemetry.AuthFailures.WithLabelValues(ErrUsernameTaken.Error()).Inc()
 		return "", ErrUsernameTaken
 	}
 

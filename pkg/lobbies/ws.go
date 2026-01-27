@@ -11,16 +11,20 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	ReadBufferSize: 1024, WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
 		return true // tighten later
 	},
 }
 
 func (h *Handler) GameWS(c echo.Context) error {
-	lobbyID := c.Param("lobbyID")
+	lobbyID := c.Param("id")
 	playerID := c.Get("playerID").(string)
+
+	room, ok := h.gh.GetRoom(lobbyID)
+	if !ok {
+		return ErrUnknownLobby
+	}
 
 	conn, err := upgrader.Upgrade(
 		c.Response(),
@@ -29,12 +33,6 @@ func (h *Handler) GameWS(c echo.Context) error {
 	)
 	if err != nil {
 		telemetry.WSUpgradeFailures.With(prometheus.Labels{"reason": err.Error()}).Inc()
-		return err
-	}
-
-	room, ok := h.gh.GetRoom(lobbyID)
-	if !ok {
-		conn.Close()
 		return nil
 	}
 
@@ -42,12 +40,13 @@ func (h *Handler) GameWS(c echo.Context) error {
 		PlayerID: playerID,
 		Conn:     conn,
 		Send:     make(chan game.Event, 16),
+		Room:     room,
 	}
 
 	room.Join(player)
 
-	// go player.WriteLoop()
-	// go player.ReadLoop(room)
+	go player.WriteLoop()
+	go player.ReadLoop(room)
 
 	return nil
 }

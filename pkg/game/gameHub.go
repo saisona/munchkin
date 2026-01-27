@@ -23,6 +23,7 @@ func NewGameHub() GameHub {
 }
 
 func (h *AppGameHub) GetRoom(lobbyID string) (*GameRoom, bool) {
+	logger.With(slog.String("lobbyID", lobbyID)).Info("appGameHub.GetRoom launched")
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
@@ -45,9 +46,7 @@ func (h *AppGameHub) CreateRoom(lobbyID string, initialState *GameState) (*GameR
 	go room.Run()
 
 	telemetry.GameRoomsCreated.Inc()
-
-	slog.With(slog.String("component", "game_hub"), slog.String("lobbyID", lobbyID)).
-		Info("game room created")
+	logger.With(slog.String("lobbyID", lobbyID), slog.Int("gameHub.rooms.length", len(h.rooms))).Debug("room created")
 	return room, nil
 }
 
@@ -61,7 +60,7 @@ func (h *AppGameHub) RemoveRoom(lobbyID string) {
 
 	delete(h.rooms, lobbyID)
 
-	telemetry.GameRoomsDestroyed.Inc()
+	telemetry.GameRoomsDestroyed.WithLabelValues("gamehub_basic_close").Inc()
 
 	slog.With(slog.String("component", "game_hub"), slog.String("lobbyID", lobbyID)).
 		Info("game room removed")

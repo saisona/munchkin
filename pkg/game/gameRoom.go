@@ -64,6 +64,7 @@ func (r *GameRoom) Run() {
 
 func (r *GameRoom) handleCommand(cmd Command) {
 	start := time.Now()
+	logger.With(slog.String("cmdType", cmd.Type()), slog.String("playerID", cmd.GetPlayerID())).Debug("received command to handle")
 
 	telemetry.CommandsTotal.
 		WithLabelValues(cmd.Type()).

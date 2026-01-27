@@ -10,6 +10,6 @@ datasources:
         datasourceUid: Loki
         spanStartTimeShift: "-1m"
         spanEndTimeShift: "1m"
-        tags: ["job", "instance"]
+        tags: ["job", "instance", "service_name"]
         filterByTraceID: true
         filterBySpanID: true

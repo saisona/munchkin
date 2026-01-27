@@ -59,13 +59,14 @@ var (
 		},
 	)
 
-	GameRoomsDestroyed = prometheus.NewCounter(
+	GameRoomsDestroyed = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "munchin",
 			Subsystem: "game",
 			Name:      "rooms_destroyed_total",
 			Help:      "Total number of game rooms destroyed",
 		},
+		[]string{"reason"},
 	)
 
 	GameRoomsActive = prometheus.NewGauge(

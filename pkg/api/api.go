@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/auth"
+	"dev.azure.com/saisona/Munchin/munchin-api/pkg/game"
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/lobbies"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
@@ -21,7 +22,6 @@ func HandleAuthRoutes(g *echo.Group, db *gorm.DB) {
 
 	g.POST("/register", h.Register)
 	g.POST("/login", h.Login)
-	g.GET("/me", auth.Me, auth.AuthMiddleware(jwtKey))
 }
 
 func HandleLobbiesRoutes(g *echo.Group, db *gorm.DB) {
@@ -34,8 +34,10 @@ func HandleLobbiesRoutes(g *echo.Group, db *gorm.DB) {
 	if err != nil {
 		panic(err)
 	}
-	h := lobbies.NewLobbyHandler(lobbies.NewService(repo, dbPlayerRepo))
+	h := lobbies.NewLobbyHandler(lobbies.NewService(repo, dbPlayerRepo), game.NewGameHub())
+
 	g.POST("", h.HandleNewLobby)
+	g.GET("", h.ListLobbies)
 	g.POST("/:id/start", h.HandleStartGame)
 	g.POST("/:id/join", h.HandleJoinGame)
 	g.GET("/:id/ws", h.GameWS)

@@ -14,7 +14,10 @@ type LobbyCreationResponse struct {
 type LobbyRepository interface {
 	Create(context.Context, *Lobby) error
 	Find(context.Context, string) (*Lobby, error)
+	Fetch(context.Context) ([]Lobby, error)
 	FinishGame(context.Context, string) error
 	StartGame(context.Context, string) error
 	AddPlayer(context.Context, string, *auth.Player) error
+
+	ListForLobbyScene(context.Context, int, int) ([]LobbyListItem, error)
 }

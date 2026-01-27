@@ -2,6 +2,7 @@ package lobbies
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/auth"
@@ -28,7 +29,7 @@ func (s Service) CreateLobby(ctx context.Context, requesterID string) (string, e
 		ID:         uuid.NewString(),
 		Players:    players,
 		CreatedAt:  time.Now(),
-		FinishedAt: time.Time{},
+		FinishedAt: sql.NullTime{},
 	}
 	if err := s.repo.Create(ctx, l); err != nil {
 		return "", err
@@ -41,6 +42,12 @@ func (s Service) StartGame(ctx context.Context, lobbyID string) error {
 }
 
 func (s Service) StopGame(ctx context.Context, lobbyID string) error {
+	t := time.NewTimer(24 * time.Hour)
+	<-t.C
+	if err := s.repo.FinishGame(ctx, lobbyID); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -51,4 +58,8 @@ func (s Service) JoinGame(ctx context.Context, lobbyID string, playerID string) 
 	}
 
 	return s.repo.AddPlayer(ctx, lobbyID, p)
+}
+
+func (s Service) FindLobbies(ctx context.Context, playerID string) ([]Lobby, error) {
+	return s.repo.Fetch(ctx)
 }

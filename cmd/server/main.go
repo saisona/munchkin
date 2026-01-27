@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
@@ -28,6 +29,22 @@ func init() {
 	}
 }
 
+func initTracing(ctx context.Context, svcName string) (func(context.Context) error, error) {
+	otlpEndpoint, tracingOTELEndpoint := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	if !tracingOTELEndpoint {
+		logger.Warn("OTEL cannot be set as no OTEL_EXPORTER_OTLP_ENDPOINT env found")
+	} else if tracingOTELEndpoint && svcName == "" {
+		logger.Warn("OTEL is set but OTEL_SERVICE_NAME env is missing")
+		return nil, errors.New("missing OTEL_SERVICE_NAME env")
+	}
+
+	shutdownTracer, errInitTracer := telemetry.InitTracer(ctx, svcName, otlpEndpoint)
+	if errInitTracer != nil {
+		return nil, errInitTracer
+	}
+	return shutdownTracer, nil
+}
+
 var connectionString = fmt.Sprintf(
 	"host=%s user=%s password=%s dbname=%s sslmode=disable",
 	os.Getenv("POSTGRES_HOST"),
@@ -36,35 +53,37 @@ var connectionString = fmt.Sprintf(
 	os.Getenv("POSTGRES_DB"),
 )
 
-var _jsonLogger = slog.NewJSONHandler(os.Stdout, nil)
+var (
+	_jsonLogger = slog.NewJSONHandler(os.Stdout, nil)
+	logger      = slog.New(_jsonLogger).WithGroup("main")
+)
 
 func main() {
 	ctx := context.Background()
 
-	svcName := os.Getenv("OTEL_SERVICE_NAME")
-	otlpEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-
-	// 2. Install slog bridge IMMEDIATELY
-	slog.SetDefault(slog.New(_jsonLogger))
+	shutdownTracer, errInitTracing := initTracing(ctx, os.Getenv("OTEL_SERVICE_NAME"))
+	if errInitTracing != nil {
+		panic(errInitTracing)
+	}
 
 	// 3. NOW tracing (traces don't affect slog)
 	telemetry.Register()
-	shutdownTracer, errInitTracer := telemetry.InitTracer(ctx, svcName, otlpEndpoint)
-	if errInitTracer != nil {
-		panic(errInitTracer)
-	}
 
 	// 4. Everything else AFTER
 	e := echo.New()
+	availableOrigins := os.Getenv("MUNCHIN_ALLOWED_ORIGINS")
+	slog.SetDefault(logger)
 
 	e.Use(
 		echoprometheus.NewMiddleware("munchin"),
 		otelecho.Middleware("munchin"),
-		middleware.Recover(),
 		middleware.RequestID(),
 		middleware.Secure(),
 		middleware.Gzip(),
 		middleware.RequestLogger(), // ← NOW it uses OTEL slog
+		middleware.CORSWithConfig(middleware.CORSConfig{
+			AllowOrigins: strings.Split(availableOrigins, ","),
+		}),
 	)
 	e.HideBanner = true
 
@@ -98,7 +117,7 @@ func main() {
 	}()
 
 	<-sigCtx.Done()
-	slog.Info("Shutting down the server")
+	logger.Info("Shutting down the server")
 
 	shutdownCtx, cancel := context.WithTimeout(sigCtx, 5*time.Second)
 	defer cancel()

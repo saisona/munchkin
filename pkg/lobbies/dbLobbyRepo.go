@@ -5,21 +5,40 @@ import (
 	"log/slog"
 	"slices"
 	"strconv"
+	"time"
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/auth"
+	"dev.azure.com/saisona/Munchin/munchin-api/pkg/telemetry"
+	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 type DBLobbyRepo struct {
-	db *gorm.DB
+	db     *gorm.DB
+	tracer trace.Tracer
+}
+
+// Fetch implements [LobbyRepository].
+func (dlr DBLobbyRepo) Fetch(ctx context.Context) ([]Lobby, error) {
+	ctxTracer, span := dlr.tracer.Start(ctx, "repo.fetchLobbies")
+	defer span.End()
+
+	lobbies := make([]Lobby, 0, 10)
+	if tx := dlr.db.WithContext(ctxTracer).Preload("Players").Limit(10).Find(&lobbies, "state != ?", StateInGame); tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	return lobbies, nil
 }
 
 // Find implements [LobbyRepository].
 func (dlr DBLobbyRepo) Find(ctx context.Context, lobbyID string) (*Lobby, error) {
+	ctxTracer, span := dlr.tracer.Start(ctx, "repo.find")
 	var l Lobby
-	tx := dlr.db.WithContext(ctx).First(&l, "ID = ?", lobbyID)
+	tx := dlr.db.WithContext(ctxTracer).First(&l, "ID = ?", lobbyID)
 	if tx.Error != nil {
+		span.RecordError(tx.Error, trace.WithStackTrace(true))
 		return nil, tx.Error
 	}
 	return &l, tx.Error
@@ -27,9 +46,11 @@ func (dlr DBLobbyRepo) Find(ctx context.Context, lobbyID string) (*Lobby, error)
 
 // StartGame implements [LobbyRepository].
 func (dlr DBLobbyRepo) StartGame(ctx context.Context, lobbyID string) error {
-	tx := dlr.db.WithContext(ctx).Begin()
+	ctxTracer, span := dlr.tracer.Start(ctx, "repo.find")
+	tx := dlr.db.WithContext(ctxTracer).Begin()
 	defer func() {
 		if r := recover(); r != nil {
+			span.RecordError(r.(error))
 			tx.Rollback()
 		}
 	}()
@@ -41,6 +62,7 @@ func (dlr DBLobbyRepo) StartGame(ctx context.Context, lobbyID string) error {
 		First(&l).Error; err != nil {
 
 		tx.Rollback()
+		span.RecordError(err)
 		return err
 	}
 
@@ -52,10 +74,12 @@ func (dlr DBLobbyRepo) StartGame(ctx context.Context, lobbyID string) error {
 	switch l.State {
 	case StateFull:
 		tx.Rollback()
+		span.RecordError(ErrFullLobby)
 		return ErrFullLobby
 
 	case StateInGame:
 		tx.Rollback()
+		span.RecordError(ErrLobbyAlreadyStarted)
 		return ErrLobbyAlreadyStarted
 
 	case StateAvailable:
@@ -66,6 +90,7 @@ func (dlr DBLobbyRepo) StartGame(ctx context.Context, lobbyID string) error {
 
 		if res.Error != nil {
 			tx.Rollback()
+			span.RecordError(res.Error)
 			return res.Error
 		}
 	}
@@ -115,12 +140,59 @@ func (dlr DBLobbyRepo) Create(ctx context.Context, l *Lobby) error {
 
 // FinishGame implements [LobbyRepository].
 func (dlr DBLobbyRepo) FinishGame(ctx context.Context, lobbyID string) error {
-	panic("unimplemented")
+	traceCtx, span := dlr.tracer.Start(ctx, "game.finish")
+	defer span.End()
+	logger.With(slog.String("lobbyID", lobbyID)).InfoContext(traceCtx, "finishing the game as should never take more than 1day")
+	tx := dlr.db.WithContext(traceCtx).Debug().Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", lobbyID).
+		UpdateColumn("FinishedAt ", time.Now())
+	if tx.Error != nil {
+		tx.Rollback()
+		span.RecordError(tx.Error)
+		return tx.Error
+	}
+	return nil
+}
+
+func (dlr DBLobbyRepo) ListForLobbyScene(
+	ctx context.Context,
+	limit int,
+	offset int,
+) ([]LobbyListItem, error) {
+	items := make([]LobbyListItem, 0, limit)
+	traceCtx, span := dlr.tracer.Start(ctx, "lobby.game_list")
+	defer span.End()
+
+	tx := dlr.db.
+		WithContext(traceCtx).
+		Table("lobbies AS l").
+		Select(`
+			l.id,
+			l.state,
+			COUNT(lp.player_id) AS player_count
+		`).
+		Joins(`
+			LEFT JOIN lobby_players lp
+			ON lp.lobby_id = l.id
+		`).
+		Where("l.state != ?", StateInGame).
+		Group("l.id").
+		Order("l.created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Scan(&items)
+
+	if tx.Error != nil {
+		span.RecordError(tx.Error)
+		return nil, tx.Error
+	}
+
+	return items, nil
 }
 
 func NewDBLobbyRepo(db *gorm.DB) (LobbyRepository, error) {
 	if errAutoMigrate := db.AutoMigrate(Lobby{}); errAutoMigrate != nil {
 		return nil, errAutoMigrate
 	}
-	return DBLobbyRepo{db: db}, nil
+	return DBLobbyRepo{db: db, tracer: telemetry.DefaultRepoTracer}, nil
 }

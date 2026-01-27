@@ -85,7 +85,7 @@ discovery.relabel "logs_integrations_docker" {
   rule {
     source_labels = ["__meta_docker_container_name"]
     regex         = "/(.*)"
-    target_label  = "container"
+    target_label  = "service_name"
   }
 
   rule {

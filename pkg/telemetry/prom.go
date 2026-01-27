@@ -5,13 +5,14 @@ import (
 )
 
 var (
-	AuthFailures = prometheus.NewCounter(
+	AuthFailures = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "munchin",
 			Subsystem: "auth",
 			Name:      "failures_total",
 			Help:      "Total number of authentication failures",
 		},
+		[]string{"reason"},
 	)
 	AuthSuccess = prometheus.NewCounter(
 		prometheus.CounterOpts{

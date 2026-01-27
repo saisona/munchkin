@@ -11,6 +11,16 @@ volumes:
     driver: local
 
 services:
+  munchin-ui:
+    build: ../munchin-ui
+    container_name: ui
+    labels:
+      app: munchin-ui
+      env: dev
+    ports:
+      - "8181:80"
+    environment:
+      - PARCEL_API_BASE=http://localhost:1337
   app:
     labels:
       app: munchin
@@ -22,7 +32,6 @@ services:
       - postgres
     ports:
       - "1337:1337" # HOST_PORT:CONTAINER_PORT
-      - "8080:8080"
     networks:
       - monitoring
 

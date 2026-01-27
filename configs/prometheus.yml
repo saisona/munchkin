@@ -22,6 +22,3 @@ scrape_configs:
   - job_name: 'munchin-api'
     static_configs:
     - targets: ['app:1337']
-  - job_name: 'munchin-db'
-    static_configs:
-    - targets: ['app:8080']

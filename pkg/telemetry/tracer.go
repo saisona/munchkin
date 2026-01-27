@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -11,6 +12,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var (
@@ -66,4 +68,28 @@ func InitTracer(
 
 	// Return shutdown function
 	return tp.Shutdown, nil
+}
+
+func traceFieldsFromContext(ctx context.Context) []slog.Attr {
+	span := trace.SpanFromContext(ctx)
+	if !span.SpanContext().IsValid() {
+		return nil
+	}
+
+	sc := span.SpanContext()
+	return []slog.Attr{
+		slog.String("trace_id", sc.TraceID().String()),
+		slog.String("span_id", sc.SpanID().String()),
+	}
+}
+
+type TraceHandler struct {
+	slog.Handler
+}
+
+func (h TraceHandler) Handle(ctx context.Context, r slog.Record) error {
+	if attrs := traceFieldsFromContext(ctx); len(attrs) > 0 {
+		r.AddAttrs(attrs...)
+	}
+	return h.Handler.Handle(ctx, r)
 }
