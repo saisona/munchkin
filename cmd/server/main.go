@@ -63,8 +63,8 @@ var (
 // GetLobbies godoc
 // @Summary Check health of the service
 // @Description Works as a probe like healhtz check
-// @Tags healt
-// @Success 200
+// @Tags health
+// @Success 204
 // @Router /healthz [get]
 func healhtz(c echo.Context) error { return c.NoContent(http.StatusNoContent) }
 
@@ -127,25 +127,24 @@ func main() {
 	go func() {
 		if err := e.Start(":1337"); err != nil &&
 			!errors.Is(err, http.ErrServerClosed) {
-			slog.ErrorContext(
-				sigCtx,
-				"an error occured during creation of the server",
-				slog.Any("error", err),
-			)
+			slog.With(slog.Any("error", err)).
+				ErrorContext(sigCtx, "an error occured during creation of the server")
 		}
 	}()
 
 	<-sigCtx.Done()
-	logger.Info("Shutting down the server")
+	logger.InfoContext(sigCtx, "Shutting down the server")
 
 	shutdownCtx, cancel := context.WithTimeout(sigCtx, 5*time.Second)
 	defer cancel()
 
 	// 1. Stop HTTP server (lets in-flight requests finish)
 	if errServerShutdown := e.Shutdown(shutdownCtx); errServerShutdown != nil {
-		panic(errServerShutdown)
+		logger.With(slog.Any("error", errServerShutdown)).
+			ErrorContext(shutdownCtx, "Shutting down the server failed")
 	}
 	if errTracerShudown := shutdownTracer(shutdownCtx); errTracerShudown != nil {
-		panic(errTracerShudown)
+		logger.With(slog.Any("error", errTracerShudown)).
+			ErrorContext(shutdownCtx, "Shutting down the server failed")
 	}
 }
