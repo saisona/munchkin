@@ -42,6 +42,15 @@ func NewLobbyHandler(svc *Service, gh game.GameHub) Handler {
 	return Handler{s: svc, gh: gh}
 }
 
+// HandleNewLobby godoc
+// @Summary Create a new lobby
+// @Description Create a new game lobby and initialize its game room for the authenticated player.
+// @Tags lobby
+// @Produce json
+// @Success 201 {object} LobbyCreationResponse "Lobby successfully created"
+// @Failure 400 {object} LobbyCreationResponse "Invalid request or unknown lobby"
+// @Failure 500 {string} string "Internal server error"
+// @Router /lobby [post]
 func (h Handler) HandleNewLobby(c echo.Context) error {
 	playerID := c.Get("playerID").(string)
 
@@ -76,6 +85,15 @@ func (h Handler) HandleNewLobby(c echo.Context) error {
 	return c.JSON(http.StatusCreated, lcr)
 }
 
+// HandleStartGame godoc
+// @Summary Start a game
+// @Description Start the game associated with a lobby.
+// @Tags game
+// @Param id path string true "Lobby ID"
+// @Success 200
+// @Failure 400 {object} LobbyCreationResponse "Missing lobby ID or invalid lobby"
+// @Failure 500 {string} string "Internal server error"
+// @Router /lobby/{id}/start [post]
 func (h Handler) HandleStartGame(c echo.Context) error {
 	lobbyID := c.Param("id")
 	if lobbyID == "" {
@@ -101,6 +119,16 @@ func (h Handler) HandleStartGame(c echo.Context) error {
 	return nil
 }
 
+// HandleJoinGame godoc
+// @Summary Join a game
+// @Description Join an existing game lobby as the authenticated player.
+// @Tags game
+// @Param id path string true "Lobby ID"
+// @Success 200 {string} string "Successfully joined the game"
+// @Failure 400 {string} string "Missing lobby ID or invalid request"
+// @Failure 404 {string} string "Lobby not found"
+// @Failure 500 {string} string "Internal server error"
+// @Router /lobby/{id}/join [post]
 func (h Handler) HandleJoinGame(c echo.Context) error {
 	ctx := c.Request().Context()
 	lobbyID := c.Param("id")
@@ -121,12 +149,12 @@ func (h Handler) HandleJoinGame(c echo.Context) error {
 }
 
 // GetAllLobbies godoc
-// @Summary Fetch lobbies models
-// @Description Allows to fetch all lobbies as they're stored in the
+// @Summary Get all lobbies
+// @Description Retrieve all lobbies without pagination.
 // @Tags lobby
 // @Produce json
-// @Deprecated
-// @Success 200 {array} Lobby
+// @Success 200 {array} LobbyListItem "List of lobbies"
+// @Failure 500 {string} string "Internal server error"
 // @Router /lobby/model [get]
 func (h Handler) GetAllLobbies(c echo.Context) error {
 	lobbies, err := h.s.repo.Fetch(c.Request().Context())
@@ -136,8 +164,6 @@ func (h Handler) GetAllLobbies(c echo.Context) error {
 	return c.JSON(200, lobbies)
 }
 
-// handler/lobby.go
-
 type LobbyListResponse struct {
 	Items   []LobbyListItem `json:"items"`
 	Limit   int             `json:"limit"`
@@ -146,11 +172,14 @@ type LobbyListResponse struct {
 }
 
 // ListLobbies godoc
-// @Summary List Lobbies
-// @Description List all game lobbies based
+// @Summary List lobbies
+// @Description Retrieve a paginated list of lobbies for the lobby selection scene (Game Endpoint).
 // @Tags lobby
 // @Produce json
-// @Success 200 {array} LobbyListResponse
+// @Param limit query int false "Maximum number of items to return" default(20)
+// @Param offset query int false "Offset for pagination" default(0)
+// @Success 200 {object} LobbyListResponse "Paginated list of lobbies"
+// @Failure 500 {string} string "Internal server error"
 // @Router /lobby [get]
 func (h *Handler) ListLobbies(c echo.Context) error {
 	ctx := c.Request().Context()

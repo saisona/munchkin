@@ -2,7 +2,6 @@ package lobbies
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/auth"
@@ -29,7 +28,7 @@ func (s Service) CreateLobby(ctx context.Context, requesterID string) (string, e
 		ID:         uuid.NewString(),
 		Players:    players,
 		CreatedAt:  time.Now(),
-		FinishedAt: sql.NullTime{},
+		FinishedAt: time.Time{},
 	}
 	if err := s.repo.Create(ctx, l); err != nil {
 		return "", err

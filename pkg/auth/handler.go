@@ -29,6 +29,17 @@ func NewAuthHandler(svc *Service) Handler {
 	return Handler{s: svc}
 }
 
+// Login godoc
+// @Summary Authenticate a user
+// @Description Authenticate a user using username and password and return a JWT token.
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body AuthRequest true "Authentication credentials"
+// @Success 200 {object} AuthResponse "Authentication successful"
+// @Failure 400 {string} string "Invalid credentials or malformed request"
+// @Failure 500 {string} string "Internal server error"
+// @Router /auth/login [post]
 func (h *Handler) Login(c echo.Context) error {
 	reqCtx := c.Request().Context()
 	sp := trace.SpanFromContext(reqCtx)
@@ -58,6 +69,17 @@ func (h *Handler) Login(c echo.Context) error {
 	return c.JSON(200, resp)
 }
 
+// Register godoc
+// @Summary Register a new user
+// @Description Register a new user with username and password and return a JWT token.
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body AuthRequest true "Registration credentials"
+// @Success 200 {object} AuthResponse "Registration successful"
+// @Failure 400 {string} string "Invalid request or user already exists"
+// @Failure 500 {string} string "Internal server error"
+// @Router /auth/register [post]
 func (h *Handler) Register(c echo.Context) error {
 	reqCtx := c.Request().Context()
 	var req AuthRequest
