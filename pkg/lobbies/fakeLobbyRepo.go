@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/auth"
+	"dev.azure.com/saisona/Munchin/munchin-api/pkg/telemetry"
 )
 
 var (
@@ -17,7 +18,7 @@ var (
 		Level: slog.LevelDebug,
 	})
 
-	logger = slog.New(_jsonLogger).WithGroup("lobby")
+	logger = slog.New(telemetry.TraceHandler{Handler: _jsonLogger})
 )
 
 var _baseFakeDate = []Lobby{

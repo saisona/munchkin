@@ -5,10 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
-	"go.opentelemetry.io/contrib/bridges/otelslog"
+	"dev.azure.com/saisona/Munchin/munchin-api/pkg/telemetry"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -16,7 +17,13 @@ type FakePlayerRepo struct{}
 
 var ErrPlayerIsNil = errors.New("given argument player is nil, something went wrong")
 
-var logger = slog.New(otelslog.NewHandler("munchin")).WithGroup("Auth")
+var (
+	_jsonLogger = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})
+
+	logger = slog.New(telemetry.TraceHandler{Handler: _jsonLogger})
+)
 
 func (fpr *FakePlayerRepo) Create(ctx context.Context, p *Player) error {
 	if p == nil {
