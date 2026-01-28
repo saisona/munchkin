@@ -38,7 +38,13 @@ func HandleLobbiesRoutes(g *echo.Group, db *gorm.DB) {
 
 	g.POST("", h.HandleNewLobby)
 	g.GET("", h.ListLobbies)
-	g.POST("/:id/start", h.HandleStartGame)
-	g.POST("/:id/join", h.HandleJoinGame)
-	g.GET("/:id/ws", h.GameWS)
+	g.GET("model", h.GetAllLobbies)
+
+	handleLobbyGroup(g.Group(":id"), h)
+}
+
+func handleLobbyGroup(g *echo.Group, handler lobbies.Handler) {
+	g.POST("/start", handler.HandleStartGame)
+	g.POST("/join", handler.HandleJoinGame)
+	g.GET("/ws", handler.GameWS)
 }
