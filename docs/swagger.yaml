@@ -1,101 +1,47 @@
 basePath: /
 definitions:
-  dev_azure_com_saisona_Munchin_munchin-api_pkg_auth.Player:
+  auth.AuthRequest:
     properties:
-      createdAt:
-        type: string
-      hash:
-        type: string
-      player_id:
+      password:
         type: string
       username:
         type: string
     type: object
-  dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.Lobby:
+  auth.AuthResponse:
     properties:
-      createAt:
+      token:
         type: string
-      finishedAt:
+    type: object
+  lobbies.LobbyCreationResponse:
+    properties:
+      error:
         type: string
       lobby_id:
         type: string
-      players:
-        items:
-          $ref: '#/definitions/dev_azure_com_saisona_Munchin_munchin-api_pkg_auth.Player'
-        type: array
-      state:
-        $ref: '#/definitions/dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.LobbyState'
     type: object
-  dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.LobbyListItem:
+  lobbies.LobbyListItem:
     properties:
       id:
         type: string
       playerCount:
         type: integer
       state:
-        $ref: '#/definitions/dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.LobbyState'
+        $ref: '#/definitions/lobbies.LobbyState'
     type: object
-  dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.LobbyListResponse:
+  lobbies.LobbyListResponse:
     properties:
       hasMore:
         type: boolean
       items:
         items:
-          $ref: '#/definitions/dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.LobbyListItem'
+          $ref: '#/definitions/lobbies.LobbyListItem'
         type: array
       limit:
         type: integer
       offset:
         type: integer
     type: object
-  dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.LobbyState:
-    enum:
-    - ACTIVE
-    - FULL
-    - IN_GAME
-    type: string
-    x-enum-varnames:
-    - StateAvailable
-    - StateFull
-    - StateInGame
-  pkg_lobbies.Lobby:
-    properties:
-      createAt:
-        type: string
-      finishedAt:
-        type: string
-      lobby_id:
-        type: string
-      players:
-        items:
-          $ref: '#/definitions/dev_azure_com_saisona_Munchin_munchin-api_pkg_auth.Player'
-        type: array
-      state:
-        $ref: '#/definitions/pkg_lobbies.LobbyState'
-    type: object
-  pkg_lobbies.LobbyListItem:
-    properties:
-      id:
-        type: string
-      playerCount:
-        type: integer
-      state:
-        $ref: '#/definitions/pkg_lobbies.LobbyState'
-    type: object
-  pkg_lobbies.LobbyListResponse:
-    properties:
-      hasMore:
-        type: boolean
-      items:
-        items:
-          $ref: '#/definitions/pkg_lobbies.LobbyListItem'
-        type: array
-      limit:
-        type: integer
-      offset:
-        type: integer
-    type: object
-  pkg_lobbies.LobbyState:
+  lobbies.LobbyState:
     enum:
     - ACTIVE
     - FULL
@@ -112,44 +58,198 @@ info:
   title: Munchin API
   version: "0.1"
 paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate a user using username and password and return a JWT
+        token.
+      parameters:
+      - description: Authentication credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.AuthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Authentication successful
+          schema:
+            $ref: '#/definitions/auth.AuthResponse'
+        "400":
+          description: Invalid credentials or malformed request
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Authenticate a user
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user with username and password and return a JWT
+        token.
+      parameters:
+      - description: Registration credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.AuthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Registration successful
+          schema:
+            $ref: '#/definitions/auth.AuthResponse'
+        "400":
+          description: Invalid request or user already exists
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Register a new user
+      tags:
+      - auth
   /healthz:
     get:
       description: Works as a probe like healhtz check
       responses:
-        "200":
-          description: OK
+        "204":
+          description: No Content
       summary: Check health of the service
       tags:
-      - healt
+      - health
   /lobby:
     get:
-      description: List all game lobbies based
+      description: Retrieve a paginated list of lobbies for the lobby selection scene
+        (Game Endpoint).
+      parameters:
+      - default: 20
+        description: Maximum number of items to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Paginated list of lobbies
           schema:
-            items:
-              $ref: '#/definitions/pkg_lobbies.LobbyListResponse'
-            type: array
-      summary: List Lobbies
+            $ref: '#/definitions/lobbies.LobbyListResponse'
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: List lobbies
       tags:
       - lobby
+    post:
+      description: Create a new game lobby and initialize its game room for the authenticated
+        player.
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Lobby successfully created
+          schema:
+            $ref: '#/definitions/lobbies.LobbyCreationResponse'
+        "400":
+          description: Invalid request or unknown lobby
+          schema:
+            $ref: '#/definitions/lobbies.LobbyCreationResponse'
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Create a new lobby
+      tags:
+      - lobby
+  /lobby/{id}/join:
+    post:
+      description: Join an existing game lobby as the authenticated player.
+      parameters:
+      - description: Lobby ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Successfully joined the game
+          schema:
+            type: string
+        "400":
+          description: Missing lobby ID or invalid request
+          schema:
+            type: string
+        "404":
+          description: Lobby not found
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Join a game
+      tags:
+      - game
+  /lobby/{id}/start:
+    post:
+      description: Start the game associated with a lobby.
+      parameters:
+      - description: Lobby ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Game started
+          schema:
+            type: string
+        "400":
+          description: Missing lobby ID or invalid lobby
+          schema:
+            $ref: '#/definitions/lobbies.LobbyCreationResponse'
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Start a game
+      tags:
+      - game
   /lobby/model:
     get:
-      deprecated: true
-      description: Allows to fetch all lobbies as they're stored in the
+      description: Retrieve all lobbies without pagination.
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: List of lobbies
           schema:
             items:
-              $ref: '#/definitions/pkg_lobbies.Lobby'
+              $ref: '#/definitions/lobbies.LobbyListItem'
             type: array
-      summary: Fetch lobbies models
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Get all lobbies
       tags:
       - lobby
 swagger: "2.0"
