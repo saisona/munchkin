@@ -1,4 +1,37 @@
 basePath: /
+definitions:
+  lobbies.LobbyListItem:
+    properties:
+      id:
+        type: string
+      playerCount:
+        type: integer
+      state:
+        $ref: '#/definitions/lobbies.LobbyState'
+    type: object
+  lobbies.LobbyListResponse:
+    properties:
+      hasMore:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/lobbies.LobbyListItem'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  lobbies.LobbyState:
+    enum:
+    - ACTIVE
+    - FULL
+    - IN_GAME
+    type: string
+    x-enum-varnames:
+    - StateAvailable
+    - StateFull
+    - StateInGame
 host: localhost:8080
 info:
   contact: {}
@@ -15,4 +48,19 @@ paths:
       summary: Check health of the service
       tags:
       - healt
+  /lobby:
+    get:
+      description: List all game lobbies based
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/lobbies.LobbyListResponse'
+            type: array
+      summary: List Lobbies
+      tags:
+      - lobby
 swagger: "2.0"

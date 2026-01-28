@@ -137,6 +137,13 @@ type LobbyListResponse struct {
 	HasMore bool            `json:"hasMore"`
 }
 
+// ListLobbies godoc
+// @Summary List Lobbies
+// @Description List all game lobbies based
+// @Tags lobby
+// @Produce json
+// @Success 200 {array} LobbyListResponse
+// @Router /lobby [get]
 func (h *Handler) ListLobbies(c echo.Context) error {
 	ctx := c.Request().Context()
 

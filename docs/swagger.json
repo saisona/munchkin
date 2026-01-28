@@ -22,6 +22,78 @@
                     }
                 }
             }
+        },
+        "/lobby": {
+            "get": {
+                "description": "List all game lobbies based",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "lobby"
+                ],
+                "summary": "List Lobbies",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/lobbies.LobbyListResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "lobbies.LobbyListItem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "playerCount": {
+                    "type": "integer"
+                },
+                "state": {
+                    "$ref": "#/definitions/lobbies.LobbyState"
+                }
+            }
+        },
+        "lobbies.LobbyListResponse": {
+            "type": "object",
+            "properties": {
+                "hasMore": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/lobbies.LobbyListItem"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                }
+            }
+        },
+        "lobbies.LobbyState": {
+            "type": "string",
+            "enum": [
+                "ACTIVE",
+                "FULL",
+                "IN_GAME"
+            ],
+            "x-enum-varnames": [
+                "StateAvailable",
+                "StateFull",
+                "StateInGame"
+            ]
         }
     }
 }
