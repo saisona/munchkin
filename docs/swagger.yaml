@@ -1,28 +1,54 @@
 basePath: /
 definitions:
-  lobbies.LobbyListItem:
+  dev_azure_com_saisona_Munchin_munchin-api_pkg_auth.Player:
+    properties:
+      createdAt:
+        type: string
+      hash:
+        type: string
+      player_id:
+        type: string
+      username:
+        type: string
+    type: object
+  dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.Lobby:
+    properties:
+      createAt:
+        type: string
+      finishedAt:
+        type: string
+      lobby_id:
+        type: string
+      players:
+        items:
+          $ref: '#/definitions/dev_azure_com_saisona_Munchin_munchin-api_pkg_auth.Player'
+        type: array
+      state:
+        $ref: '#/definitions/dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.LobbyState'
+    type: object
+  dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.LobbyListItem:
     properties:
       id:
         type: string
       playerCount:
         type: integer
       state:
-        $ref: '#/definitions/lobbies.LobbyState'
+        $ref: '#/definitions/dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.LobbyState'
     type: object
-  lobbies.LobbyListResponse:
+  dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.LobbyListResponse:
     properties:
       hasMore:
         type: boolean
       items:
         items:
-          $ref: '#/definitions/lobbies.LobbyListItem'
+          $ref: '#/definitions/dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.LobbyListItem'
         type: array
       limit:
         type: integer
       offset:
         type: integer
     type: object
-  lobbies.LobbyState:
+  dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.LobbyState:
     enum:
     - ACTIVE
     - FULL
@@ -32,7 +58,54 @@ definitions:
     - StateAvailable
     - StateFull
     - StateInGame
-host: localhost:8080
+  pkg_lobbies.Lobby:
+    properties:
+      createAt:
+        type: string
+      finishedAt:
+        type: string
+      lobby_id:
+        type: string
+      players:
+        items:
+          $ref: '#/definitions/dev_azure_com_saisona_Munchin_munchin-api_pkg_auth.Player'
+        type: array
+      state:
+        $ref: '#/definitions/pkg_lobbies.LobbyState'
+    type: object
+  pkg_lobbies.LobbyListItem:
+    properties:
+      id:
+        type: string
+      playerCount:
+        type: integer
+      state:
+        $ref: '#/definitions/pkg_lobbies.LobbyState'
+    type: object
+  pkg_lobbies.LobbyListResponse:
+    properties:
+      hasMore:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/pkg_lobbies.LobbyListItem'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  pkg_lobbies.LobbyState:
+    enum:
+    - ACTIVE
+    - FULL
+    - IN_GAME
+    type: string
+    x-enum-varnames:
+    - StateAvailable
+    - StateFull
+    - StateInGame
+host: localhost:1337
 info:
   contact: {}
   description: This is the API for Munchin game backend
@@ -58,9 +131,25 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/lobbies.LobbyListResponse'
+              $ref: '#/definitions/pkg_lobbies.LobbyListResponse'
             type: array
       summary: List Lobbies
+      tags:
+      - lobby
+  /lobby/model:
+    get:
+      deprecated: true
+      description: Allows to fetch all lobbies as they're stored in the
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/pkg_lobbies.Lobby'
+            type: array
+      summary: Fetch lobbies models
       tags:
       - lobby
 swagger: "2.0"

@@ -45,7 +45,31 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/lobbies.LobbyListResponse"
+                                "$ref": "#/definitions/pkg_lobbies.LobbyListResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/lobby/model": {
+            "get": {
+                "description": "Allows to fetch all lobbies as they're stored in the",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "lobby"
+                ],
+                "summary": "Fetch lobbies models",
+                "deprecated": true,
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/pkg_lobbies.Lobby"
                             }
                         }
                     }
@@ -54,7 +78,47 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "lobbies.LobbyListItem": {
+        "dev_azure_com_saisona_Munchin_munchin-api_pkg_auth.Player": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "hash": {
+                    "type": "string"
+                },
+                "player_id": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.Lobby": {
+            "type": "object",
+            "properties": {
+                "createAt": {
+                    "type": "string"
+                },
+                "finishedAt": {
+                    "type": "string"
+                },
+                "lobby_id": {
+                    "type": "string"
+                },
+                "players": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dev_azure_com_saisona_Munchin_munchin-api_pkg_auth.Player"
+                    }
+                },
+                "state": {
+                    "$ref": "#/definitions/dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.LobbyState"
+                }
+            }
+        },
+        "dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.LobbyListItem": {
             "type": "object",
             "properties": {
                 "id": {
@@ -64,11 +128,11 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "state": {
-                    "$ref": "#/definitions/lobbies.LobbyState"
+                    "$ref": "#/definitions/dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.LobbyState"
                 }
             }
         },
-        "lobbies.LobbyListResponse": {
+        "dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.LobbyListResponse": {
             "type": "object",
             "properties": {
                 "hasMore": {
@@ -77,7 +141,7 @@ const docTemplate = `{
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/lobbies.LobbyListItem"
+                        "$ref": "#/definitions/dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.LobbyListItem"
                     }
                 },
                 "limit": {
@@ -88,7 +152,77 @@ const docTemplate = `{
                 }
             }
         },
-        "lobbies.LobbyState": {
+        "dev_azure_com_saisona_Munchin_munchin-api_pkg_lobbies.LobbyState": {
+            "type": "string",
+            "enum": [
+                "ACTIVE",
+                "FULL",
+                "IN_GAME"
+            ],
+            "x-enum-varnames": [
+                "StateAvailable",
+                "StateFull",
+                "StateInGame"
+            ]
+        },
+        "pkg_lobbies.Lobby": {
+            "type": "object",
+            "properties": {
+                "createAt": {
+                    "type": "string"
+                },
+                "finishedAt": {
+                    "type": "string"
+                },
+                "lobby_id": {
+                    "type": "string"
+                },
+                "players": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dev_azure_com_saisona_Munchin_munchin-api_pkg_auth.Player"
+                    }
+                },
+                "state": {
+                    "$ref": "#/definitions/pkg_lobbies.LobbyState"
+                }
+            }
+        },
+        "pkg_lobbies.LobbyListItem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "playerCount": {
+                    "type": "integer"
+                },
+                "state": {
+                    "$ref": "#/definitions/pkg_lobbies.LobbyState"
+                }
+            }
+        },
+        "pkg_lobbies.LobbyListResponse": {
+            "type": "object",
+            "properties": {
+                "hasMore": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/pkg_lobbies.LobbyListItem"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                }
+            }
+        },
+        "pkg_lobbies.LobbyState": {
             "type": "string",
             "enum": [
                 "ACTIVE",
@@ -107,7 +241,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "0.1",
-	Host:             "localhost:8080",
+	Host:             "localhost:1337",
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Munchin API",
