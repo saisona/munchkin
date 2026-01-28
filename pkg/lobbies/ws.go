@@ -1,6 +1,9 @@
 package lobbies
 
 import (
+	"errors"
+	"fmt"
+	"log/slog"
 	"net/http"
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/game"
@@ -8,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/prometheus/client_golang/prometheus"
+	"gorm.io/gorm"
 )
 
 var upgrader = websocket.Upgrader{
@@ -20,10 +24,24 @@ var upgrader = websocket.Upgrader{
 func (h *Handler) GameWS(c echo.Context) error {
 	lobbyID := c.Param("id")
 	playerID := c.Get("playerID").(string)
+	logger.With(slog.String("lobbyID", lobbyID)).Info("GameWS called")
 
 	room, ok := h.gh.GetRoom(lobbyID)
 	if !ok {
-		return ErrUnknownLobby
+
+		l, err := h.s.repo.Find(c.Request().Context(), lobbyID)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrUnknownLobby
+		} else {
+			// TODO: handle rebuild the room
+			fmt.Println("handle room")
+			gameStateName := fmt.Sprintf("gs-%s", l.ID)
+			gm, err := h.gh.CreateRoom(lobbyID, game.NewGameState(gameStateName, []*game.Player{}))
+			if err != nil {
+				return err
+			}
+			room = gm
+		}
 	}
 
 	conn, err := upgrader.Upgrade(
