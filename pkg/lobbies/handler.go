@@ -120,6 +120,14 @@ func (h Handler) HandleJoinGame(c echo.Context) error {
 	return nil
 }
 
+// GetAllLobbies godoc
+// @Summary Fetch lobbies models
+// @Description Allows to fetch all lobbies as they're stored in the
+// @Tags lobby
+// @Produce json
+// @Deprecated
+// @Success 200 {array} Lobby
+// @Router /lobby/model [get]
 func (h Handler) GetAllLobbies(c echo.Context) error {
 	lobbies, err := h.s.repo.Fetch(c.Request().Context())
 	if err != nil {
