@@ -11,7 +11,9 @@ import (
 	"strings"
 	"time"
 
+	_ "dev.azure.com/saisona/Munchin/munchin-api/docs"
 	_ "github.com/joho/godotenv/autoload"
+	echoSwagger "github.com/swaggo/echo-swagger"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/api"
@@ -55,9 +57,22 @@ var connectionString = fmt.Sprintf(
 
 var (
 	_jsonLogger = slog.NewJSONHandler(os.Stdout, nil)
-	logger      = slog.New(_jsonLogger).WithGroup("main")
+	logger      = slog.New(telemetry.TraceHandler{Handler: _jsonLogger})
 )
 
+// GetLobbies godoc
+// @Summary Check health of the service
+// @Description Works as a probe like healhtz check
+// @Tags healt
+// @Success 200
+// @Router /healthz [get]
+func healhtz(c echo.Context) error { return c.NoContent(http.StatusNoContent) }
+
+// @title Munchin API
+// @version 0.1
+// @description This is the API for Munchin game backend
+// @host localhost:8080
+// @BasePath /
 func main() {
 	ctx := context.Background()
 
@@ -87,8 +102,11 @@ func main() {
 	)
 	e.HideBanner = true
 
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
+
 	e.GET("/metrics", echoprometheus.NewHandler()) // adds route to serve gathered metrics
-	e.GET("/healthz", func(c echo.Context) error { return c.NoContent(http.StatusNoContent) })
+
+	e.GET("/healthz")
 
 	jwtKey := []byte(os.Getenv("JWT_SECRET"))
 	db, err := initDatabase(connectionString)
