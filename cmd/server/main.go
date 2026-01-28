@@ -71,7 +71,7 @@ func healhtz(c echo.Context) error { return c.NoContent(http.StatusNoContent) }
 // @title Munchin API
 // @version 0.1
 // @description This is the API for Munchin game backend
-// @host localhost:8080
+// @host localhost:1337
 // @BasePath /
 func main() {
 	ctx := context.Background()
