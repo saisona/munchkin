@@ -104,9 +104,10 @@ func main() {
 
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
-	e.GET("/metrics", echoprometheus.NewHandler()) // adds route to serve gathered metrics
+	// adds route to serve gathered metrics
+	e.GET("/metrics", echoprometheus.NewHandler())
 
-	e.GET("/healthz")
+	e.GET("/healthz", healhtz)
 
 	jwtKey := []byte(os.Getenv("JWT_SECRET"))
 	db, err := initDatabase(connectionString)
