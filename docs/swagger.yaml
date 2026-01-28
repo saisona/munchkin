@@ -1,0 +1,18 @@
+basePath: /
+host: localhost:8080
+info:
+  contact: {}
+  description: This is the API for Munchin game backend
+  title: Munchin API
+  version: "0.1"
+paths:
+  /healthz:
+    get:
+      description: Works as a probe like healhtz check
+      responses:
+        "200":
+          description: OK
+      summary: Check health of the service
+      tags:
+      - healt
+swagger: "2.0"

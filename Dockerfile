@@ -37,6 +37,7 @@ USER bot
 
 COPY cmd /usr/app/cmd
 COPY pkg /usr/app/pkg
+COPY docs /usr/app/docs
 
 # During this stage, we compile our application ahead of time, avoiding any runtime surprises.
 # The resulting binary, web-app-golang, will be our steadfast companion in the final leg of our journey.
