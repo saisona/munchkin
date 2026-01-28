@@ -1,7 +1,6 @@
 package lobbies
 
 import (
-	"database/sql"
 	"time"
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/auth"
@@ -19,7 +18,7 @@ type Lobby struct {
 	ID         string         `json:"lobby_id"   gorm:"primaryKey"`
 	State      LobbyState     `json:"state"`
 	CreatedAt  time.Time      `json:"createAt"`
-	FinishedAt sql.NullTime   `json:"finishedAt"`
+	FinishedAt time.Time      `json:"finishedAt"`
 	Players    []*auth.Player `json:"players"    gorm:"many2many:lobby_players"`
 }
 
