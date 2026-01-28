@@ -3,13 +3,22 @@ definitions:
   auth.AuthRequest:
     properties:
       password:
+        description: |-
+          Password of the user.
+          example: strongpassword123
         type: string
       username:
+        description: |-
+          Username of the user.
+          example: alice
         type: string
     type: object
   auth.AuthResponse:
     properties:
       token:
+        description: |-
+          JWT access token.
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         type: string
     type: object
   lobbies.LobbyCreationResponse:
@@ -22,35 +31,44 @@ definitions:
   lobbies.LobbyListItem:
     properties:
       id:
+        description: |-
+          Unique lobby identifier.
+          example: lobby-1234
+        type: string
+      name:
+        description: |-
+          Display name of the lobby.
+          example: Casual Game
         type: string
       playerCount:
+        description: |-
+          Number of players currently in the lobby.
+          example: 3
         type: integer
-      state:
-        $ref: '#/definitions/lobbies.LobbyState'
     type: object
   lobbies.LobbyListResponse:
     properties:
       hasMore:
+        description: |-
+          Indicates whether more items are available.
+          example: true
         type: boolean
       items:
+        description: List of lobby items.
         items:
           $ref: '#/definitions/lobbies.LobbyListItem'
         type: array
       limit:
+        description: |-
+          Maximum number of items returned.
+          example: 20
         type: integer
       offset:
+        description: |-
+          Offset used for pagination.
+          example: 0
         type: integer
     type: object
-  lobbies.LobbyState:
-    enum:
-    - ACTIVE
-    - FULL
-    - IN_GAME
-    type: string
-    x-enum-varnames:
-    - StateAvailable
-    - StateFull
-    - StateInGame
 host: localhost:1337
 info:
   contact: {}
@@ -155,6 +173,8 @@ paths:
           description: Internal server error
           schema:
             type: string
+      security:
+      - BearerAuth: []
       summary: List lobbies
       tags:
       - lobby
@@ -176,6 +196,8 @@ paths:
           description: Internal server error
           schema:
             type: string
+      security:
+      - BearerAuth: []
       summary: Create a new lobby
       tags:
       - lobby
@@ -205,6 +227,8 @@ paths:
           description: Internal server error
           schema:
             type: string
+      security:
+      - BearerAuth: []
       summary: Join a game
       tags:
       - game
@@ -219,9 +243,7 @@ paths:
         type: string
       responses:
         "200":
-          description: Game started
-          schema:
-            type: string
+          description: OK
         "400":
           description: Missing lobby ID or invalid lobby
           schema:
@@ -230,6 +252,8 @@ paths:
           description: Internal server error
           schema:
             type: string
+      security:
+      - BearerAuth: []
       summary: Start a game
       tags:
       - game
@@ -249,6 +273,8 @@ paths:
           description: Internal server error
           schema:
             type: string
+      security:
+      - BearerAuth: []
       summary: Get all lobbies
       tags:
       - lobby

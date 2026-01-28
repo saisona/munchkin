@@ -123,6 +123,11 @@ const docTemplate = `{
         },
         "/lobby": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Retrieve a paginated list of lobbies for the lobby selection scene (Game Endpoint).",
                 "produces": [
                     "application/json"
@@ -163,6 +168,11 @@ const docTemplate = `{
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Create a new game lobby and initialize its game room for the authenticated player.",
                 "produces": [
                     "application/json"
@@ -195,6 +205,11 @@ const docTemplate = `{
         },
         "/lobby/model": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Retrieve all lobbies without pagination.",
                 "produces": [
                     "application/json"
@@ -224,6 +239,11 @@ const docTemplate = `{
         },
         "/lobby/{id}/join": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Join an existing game lobby as the authenticated player.",
                 "tags": [
                     "game"
@@ -268,6 +288,11 @@ const docTemplate = `{
         },
         "/lobby/{id}/start": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Start the game associated with a lobby.",
                 "tags": [
                     "game"
@@ -284,10 +309,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Game started",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "description": "OK"
                     },
                     "400": {
                         "description": "Missing lobby ID or invalid lobby",
@@ -310,9 +332,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "password": {
+                    "description": "Password of the user.\nexample: strongpassword123",
                     "type": "string"
                 },
                 "username": {
+                    "description": "Username of the user.\nexample: alice",
                     "type": "string"
                 }
             }
@@ -321,6 +345,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "token": {
+                    "description": "JWT access token.\nexample: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                     "type": "string"
                 }
             }
@@ -340,13 +365,16 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "id": {
+                    "description": "Unique lobby identifier.\nexample: lobby-1234",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Display name of the lobby.\nexample: Casual Game",
                     "type": "string"
                 },
                 "playerCount": {
+                    "description": "Number of players currently in the lobby.\nexample: 3",
                     "type": "integer"
-                },
-                "state": {
-                    "$ref": "#/definitions/lobbies.LobbyState"
                 }
             }
         },
@@ -354,34 +382,25 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "hasMore": {
+                    "description": "Indicates whether more items are available.\nexample: true",
                     "type": "boolean"
                 },
                 "items": {
+                    "description": "List of lobby items.",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/lobbies.LobbyListItem"
                     }
                 },
                 "limit": {
+                    "description": "Maximum number of items returned.\nexample: 20",
                     "type": "integer"
                 },
                 "offset": {
+                    "description": "Offset used for pagination.\nexample: 0",
                     "type": "integer"
                 }
             }
-        },
-        "lobbies.LobbyState": {
-            "type": "string",
-            "enum": [
-                "ACTIVE",
-                "FULL",
-                "IN_GAME"
-            ],
-            "x-enum-varnames": [
-                "StateAvailable",
-                "StateFull",
-                "StateInGame"
-            ]
         }
     }
 }`

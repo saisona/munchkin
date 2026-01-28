@@ -6,12 +6,21 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// AuthRequest represents authentication credentials.
 type AuthRequest struct {
+	// Username of the user.
+	// example: alice
 	Username string `json:"username"`
+
+	// Password of the user.
+	// example: strongpassword123
 	Password string `json:"password"`
 }
 
+// AuthResponse represents a successful authentication response.
 type AuthResponse struct {
+	// JWT access token.
+	// example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 	Token string `json:"token"`
 }
 

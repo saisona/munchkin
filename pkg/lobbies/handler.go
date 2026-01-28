@@ -45,6 +45,7 @@ func NewLobbyHandler(svc *Service, gh game.GameHub) Handler {
 // HandleNewLobby godoc
 // @Summary Create a new lobby
 // @Description Create a new game lobby and initialize its game room for the authenticated player.
+// @Security BearerAuth
 // @Tags lobby
 // @Produce json
 // @Success 201 {object} LobbyCreationResponse "Lobby successfully created"
@@ -87,6 +88,7 @@ func (h Handler) HandleNewLobby(c echo.Context) error {
 
 // HandleStartGame godoc
 // @Summary Start a game
+// @Security BearerAuth
 // @Description Start the game associated with a lobby.
 // @Tags game
 // @Param id path string true "Lobby ID"
@@ -121,6 +123,7 @@ func (h Handler) HandleStartGame(c echo.Context) error {
 
 // HandleJoinGame godoc
 // @Summary Join a game
+// @Security BearerAuth
 // @Description Join an existing game lobby as the authenticated player.
 // @Tags game
 // @Param id path string true "Lobby ID"
@@ -150,6 +153,7 @@ func (h Handler) HandleJoinGame(c echo.Context) error {
 
 // GetAllLobbies godoc
 // @Summary Get all lobbies
+// @Security BearerAuth
 // @Description Retrieve all lobbies without pagination.
 // @Tags lobby
 // @Produce json
@@ -164,15 +168,27 @@ func (h Handler) GetAllLobbies(c echo.Context) error {
 	return c.JSON(200, lobbies)
 }
 
+// LobbyListResponse represents a paginated lobby list response.
 type LobbyListResponse struct {
-	Items   []LobbyListItem `json:"items"`
-	Limit   int             `json:"limit"`
-	Offset  int             `json:"offset"`
-	HasMore bool            `json:"hasMore"`
+	// List of lobby items.
+	Items []LobbyListItem `json:"items"`
+
+	// Maximum number of items returned.
+	// example: 20
+	Limit int `json:"limit"`
+
+	// Offset used for pagination.
+	// example: 0
+	Offset int `json:"offset"`
+
+	// Indicates whether more items are available.
+	// example: true
+	HasMore bool `json:"hasMore"`
 }
 
 // ListLobbies godoc
 // @Summary List lobbies
+// @Security BearerAuth
 // @Description Retrieve a paginated list of lobbies for the lobby selection scene (Game Endpoint).
 // @Tags lobby
 // @Produce json

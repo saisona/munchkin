@@ -22,8 +22,17 @@ type Lobby struct {
 	Players    []*auth.Player `json:"players"    gorm:"many2many:lobby_players"`
 }
 
+// LobbyListItem represents a lobby entry in a lobby list.
 type LobbyListItem struct {
-	ID          string     `json:"id"`
-	State       LobbyState `json:"state"`
-	PlayerCount int        `json:"playerCount"`
+	// Unique lobby identifier.
+	// example: lobby-1234
+	ID string `json:"id"`
+
+	// Display name of the lobby.
+	// example: Casual Game
+	Name string `json:"name"`
+
+	// Number of players currently in the lobby.
+	// example: 3
+	PlayerCount int `json:"playerCount"`
 }
