@@ -63,5 +63,6 @@ COPY --from=build-production /usr/app/app app
 # By exposing port 1337, we signal to the Docker environment the intended entry point for our application.
 EXPOSE 1337
 
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 CMD [ "wget --spider -q  http://localhost:1337/healthz || exit 1" ]
+HEALTHCHECK --interval=10s --timeout=2s --retries=3 \
+  CMD wget -qO- http://localhost:1337/healthz || exit 1
 CMD ["/app"]

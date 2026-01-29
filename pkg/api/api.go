@@ -5,10 +5,17 @@ import (
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/auth"
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/game"
+	"dev.azure.com/saisona/Munchin/munchin-api/pkg/health"
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/lobbies"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 )
+
+func HandleProbeRoutes(e *echo.Echo, db *gorm.DB, startupState *health.StartupState) {
+	e.GET("/healthz", health.Healthz)
+	e.GET("/startupz", health.Startupz(startupState))
+	e.GET("/readyz", health.Readyz(db))
+}
 
 func HandleAuthRoutes(g *echo.Group, db *gorm.DB) {
 	jwtKey := []byte(os.Getenv("JWT_SECRET"))
@@ -40,7 +47,7 @@ func HandleLobbiesRoutes(g *echo.Group, db *gorm.DB) {
 	g.GET("", h.ListLobbies)
 	g.GET("model", h.GetAllLobbies)
 
-	handleLobbyGroup(g.Group(":id"), h)
+	handleLobbyGroup(g.Group("/:id"), h)
 }
 
 func handleLobbyGroup(g *echo.Group, handler lobbies.Handler) {

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	_ "dev.azure.com/saisona/Munchin/munchin-api/docs"
@@ -18,33 +19,29 @@ import (
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/api"
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/auth"
+	"dev.azure.com/saisona/Munchin/munchin-api/pkg/health"
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/telemetry"
 	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
-func init() {
-	_, jwtSecretExists := os.LookupEnv("JWT_SECRET")
-	if !jwtSecretExists {
-		panic("JWT_SECRET env variable is missing")
-	}
-}
+var ErrMissingOTEL = errors.New("missing OTEL_SERVICE_NAME env")
 
+// initTracing initializes OpenTelemetry tracing.
+// If OTEL_EXPORTER_OTLP_ENDPOINT is not set, tracing is disabled gracefully.
 func initTracing(ctx context.Context, svcName string) (func(context.Context) error, error) {
-	otlpEndpoint, tracingOTELEndpoint := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	if !tracingOTELEndpoint {
-		logger.Warn("OTEL cannot be set as no OTEL_EXPORTER_OTLP_ENDPOINT env found")
-	} else if tracingOTELEndpoint && svcName == "" {
-		logger.Warn("OTEL is set but OTEL_SERVICE_NAME env is missing")
-		return nil, errors.New("missing OTEL_SERVICE_NAME env")
+	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	if endpoint == "" {
+		logger.WarnContext(ctx, "OTEL disabled: no OTEL_EXPORTER_OTLP_ENDPOINT set")
+		return func(context.Context) error { return nil }, nil
 	}
 
-	shutdownTracer, errInitTracer := telemetry.InitTracer(ctx, svcName, otlpEndpoint)
-	if errInitTracer != nil {
-		return nil, errInitTracer
+	if svcName == "" {
+		return nil, ErrMissingOTEL
 	}
-	return shutdownTracer, nil
+
+	return telemetry.InitTracer(ctx, svcName, endpoint)
 }
 
 var connectionString = fmt.Sprintf(
@@ -55,18 +52,17 @@ var connectionString = fmt.Sprintf(
 	os.Getenv("POSTGRES_DB"),
 )
 
-var (
-	_jsonLogger = slog.NewJSONHandler(os.Stdout, nil)
-	logger      = slog.New(telemetry.TraceHandler{Handler: _jsonLogger})
+var logger = slog.New(
+	telemetry.TraceHandler{Handler: slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{})},
 )
 
-// GetLobbies godoc
-// @Summary Check health of the service
-// @Description Works as a probe like healhtz check
+// Healthz godoc
+// @Summary Health probe
+// @Description Liveness/readiness probe endpoint
 // @Tags health
 // @Success 204
 // @Router /healthz [get]
-func healhtz(c echo.Context) error { return c.NoContent(http.StatusNoContent) }
+func healthz(c echo.Context) error { return c.NoContent(http.StatusNoContent) }
 
 // @title Munchin API
 // @version 0.1
@@ -75,6 +71,13 @@ func healhtz(c echo.Context) error { return c.NoContent(http.StatusNoContent) }
 // @BasePath /
 func main() {
 	ctx := context.Background()
+
+	startupState := health.NewStartupState()
+
+	if _, exists := os.LookupEnv("JWT_SECRET"); !exists {
+		logger.ErrorContext(ctx, "JWT_SECRET env variable is missing")
+		os.Exit(1)
+	}
 
 	shutdownTracer, errInitTracing := initTracing(ctx, os.Getenv("OTEL_SERVICE_NAME"))
 	if errInitTracing != nil {
@@ -89,13 +92,31 @@ func main() {
 	availableOrigins := os.Getenv("MUNCHIN_ALLOWED_ORIGINS")
 	slog.SetDefault(logger)
 
+	db, err := initDatabase(connectionString)
+	if err != nil {
+		panic(err)
+	}
+
 	e.Use(
+		// Expose Prometheus metrics early to include all requests
 		echoprometheus.NewMiddleware("munchin"),
+
+		// Inject trace/span into request context
 		otelecho.Middleware("munchin"),
+
+		// Generate request_id header (used by logs & traces)
 		middleware.RequestID(),
+
+		// Security headers (XSS, HSTS, etc.)
 		middleware.Secure(),
+
+		// Compress responses
 		middleware.Gzip(),
-		middleware.RequestLogger(), // ← NOW it uses OTEL slog
+
+		// Structured request logging (OTEL-aware slog)
+		middleware.RequestLogger(),
+
+		// Cross-origin access for frontend clients
 		middleware.CORSWithConfig(middleware.CORSConfig{
 			AllowOrigins: strings.Split(availableOrigins, ","),
 		}),
@@ -107,21 +128,14 @@ func main() {
 	// adds route to serve gathered metrics
 	e.GET("/metrics", echoprometheus.NewHandler())
 
-	e.GET("/healthz", healhtz)
-
 	jwtKey := []byte(os.Getenv("JWT_SECRET"))
-	db, err := initDatabase(connectionString)
-	if err != nil {
-		panic(err)
-	}
+	api.HandleProbeRoutes(e, db, startupState)
 	api.HandleAuthRoutes(e.Group("/auth"), db)
 	api.HandleLobbiesRoutes(e.Group("/lobby", auth.AuthMiddleware([]byte(jwtKey))), db)
 
-	e.RouteNotFound("/*", func(c echo.Context) error {
-		return c.NoContent(404)
-	})
+	e.RouteNotFound("/*", func(c echo.Context) error { return c.NoContent(404) })
 
-	sigCtx, stop := signal.NotifyContext(ctx, os.Interrupt, os.Kill)
+	sigCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	go func() {
