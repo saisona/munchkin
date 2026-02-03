@@ -1,11 +1,12 @@
 module dev.azure.com/saisona/Munchin/munchin-api
 
-go 1.25.5
+go 1.25.6
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/labstack/echo-contrib v0.17.4
 	github.com/prometheus/client_golang v1.23.2
+	github.com/swaggo/swag v1.8.12
 	github.com/uptrace/opentelemetry-go-extra/otelgorm v0.3.2
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.39.0
 )
@@ -35,9 +36,7 @@ require (
 	github.com/prometheus/common v0.66.1 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/swaggo/files/v2 v2.0.0 // indirect
-	github.com/swaggo/swag v1.8.12 // indirect
 	github.com/uptrace/opentelemetry-go-extra/otelsql v0.3.2 // indirect
-	go.opentelemetry.io/otel/log v0.15.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/tools v0.39.0 // indirect
@@ -62,7 +61,6 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/contrib/bridges/otelslog v0.14.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.64.0
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.39.0

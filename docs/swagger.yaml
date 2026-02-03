@@ -140,11 +140,11 @@ paths:
       - auth
   /healthz:
     get:
-      description: Works as a probe like healhtz check
+      description: Liveness/readiness probe endpoint
       responses:
         "204":
           description: No Content
-      summary: Check health of the service
+      summary: Health probe
       tags:
       - health
   /lobby:
@@ -257,6 +257,27 @@ paths:
       summary: Start a game
       tags:
       - game
+  /lobby/{id}/ws:
+    get:
+      description: Establish a WebSocket connection for a lobby
+      parameters:
+      - description: Lobby ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+      security:
+      - BearerAuth: []
+      summary: Join lobby WebSocket
+      tags:
+      - lobby
   /lobby/model:
     get:
       description: Retrieve all lobbies without pagination.

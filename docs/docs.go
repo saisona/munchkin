@@ -109,11 +109,11 @@ const docTemplate = `{
         },
         "/healthz": {
             "get": {
-                "description": "Works as a probe like healhtz check",
+                "description": "Liveness/readiness probe endpoint",
                 "tags": [
                     "health"
                 ],
-                "summary": "Check health of the service",
+                "summary": "Health probe",
                 "responses": {
                     "204": {
                         "description": "No Content"
@@ -322,6 +322,40 @@ const docTemplate = `{
                         "schema": {
                             "type": "string"
                         }
+                    }
+                }
+            }
+        },
+        "/lobby/{id}/ws": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Establish a WebSocket connection for a lobby",
+                "tags": [
+                    "lobby"
+                ],
+                "summary": "Join lobby WebSocket",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Lobby ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "101": {
+                        "description": "Switching Protocols",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
                     }
                 }
             }
