@@ -1,0 +1,46 @@
+networks:
+  observability:
+    name: munchin_observability
+    external: true
+  munchin: {}
+
+volumes:
+  postgresql_data:
+
+services:
+  postgres:
+    image: postgres:17.4-alpine
+    container_name: munchin-postgres
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks: [munchin]
+
+  app:
+    image: asaison/munchin-api:v0.1.1-dockerfile
+    container_name: munchin-api
+    env_file: .munchin.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "1337:1337"
+    networks: 
+      - munchin
+      - observability
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:1337/healthz"]
+      interval: 10s
+      timeout: 2s
+      retries: 3
