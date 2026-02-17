@@ -1,7 +1,4 @@
 networks:
-  observability:
-    name: munchin_observability
-    external: true
   munchin: {}
 
 volumes:
@@ -29,6 +26,7 @@ services:
 
   app:
     image: asaison/munchin-api:v0.1.1-dockerfile
+    build: .
     container_name: munchin-api
     env_file: .munchin.env
     depends_on:
@@ -36,9 +34,7 @@ services:
         condition: service_healthy
     ports:
       - "1337:1337"
-    networks: 
-      - munchin
-      - observability
+    networks: [munchin,monitoring]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:1337/healthz"]
       interval: 10s

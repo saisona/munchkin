@@ -1,0 +1,3 @@
+include:
+  - path: ./docker-compose.monitoring.yml
+  - path: ./docker-compose.app.yml

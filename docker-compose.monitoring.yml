@@ -1,9 +1,5 @@
-
-version: "3.9"
-
 networks:
   monitoring: {}
-  observability: {}
 
 volumes:
   prometheus_data:
@@ -18,16 +14,8 @@ volumes:
 
 services:
   # -------- PROMETHEUS CONFIG INIT --------
-  prometheus-init:
-    image: busybox
-    volumes:
-      - prometheus_config:/config
-      - ./configs/prometheus.yml:/src/prometheus.yml:ro
-    command: ["sh", "-c", "cp /src/prometheus.yml /config/prometheus.yml"]
-
   prometheus:
     image: prom/prometheus:latest
-    depends_on: [prometheus-init]
     volumes:
       - prometheus_config:/etc/prometheus
       - prometheus_data:/prometheus
@@ -35,24 +23,16 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
       - --web.enable-lifecycle
-    ports:
-      - "9090:9090"
+    expose:
+      - 9090
     networks: [monitoring]
 
   # -------- GRAFANA --------
-  grafana-init:
-    image: busybox
-    volumes:
-      - grafana_provisioning:/dst
-      - ./grafana/provisioning:/src:ro
-    command: ["sh", "-c", "cp -r /src/* /dst/"]
-
   grafana:
     image: grafana/grafana:latest
-    depends_on: [grafana-init]
     volumes:
       - grafana_data:/var/lib/grafana
-      - grafana_provisioning:/etc/grafana/provisioning
+      - ./grafana/provisioning:/etc/grafana/provisioning
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
@@ -63,81 +43,50 @@ services:
     networks: [monitoring]
 
   # -------- ALERTMANAGER --------
-  alertmanager-init:
-    image: busybox
-    volumes:
-      - alertmanager_config:/etc/alertmanager
-      - ./configs/alertmanager.yml:/src/config.yml:ro
-    command: ["sh", "-c", "cp /src/config.yml /etc/alertmanager/config.yml"]
-
   alertmanager:
     image: prom/alertmanager:latest
-    depends_on: [alertmanager-init]
     volumes:
       - alertmanager_config:/etc/alertmanager
-    ports:
-      - "9093:9093"
+      - ./configs/alertmanager.yml:/etc/alertmanager/config.yml:ro
+    expose:
+      - 9093
     networks: [monitoring]
 
   # -------- LOKI --------
-  loki-init:
-    image: busybox
-    volumes:
-      - loki_config:/etc/loki
-      - ./configs/loki.yml:/src/loki.yml:ro
-    command: ["sh", "-c", "cp /src/loki.yml /etc/loki/loki.yml"]
-
   loki:
     image: grafana/loki:2.9.4
-    depends_on: [loki-init]
     volumes:
       - loki_config:/etc/loki
-    ports:
-      - "3100:3100"
+      - ./configs/loki.yml:/etc/loki/loki.yml:ro
+    expose:
+      - 3100
     networks: [monitoring]
 
   # -------- TEMPO --------
-  tempo-init:
-    image: busybox
-    volumes:
-      - tempo_config:/etc/tempo
-      - ./configs/tempo.yml:/src/tempo.yml:ro
-    command: ["sh", "-c", "cp /src/tempo.yml /etc/tempo/tempo.yml"]
-
   tempo:
     image: grafana/tempo:latest
-    depends_on: [tempo-init]
     volumes:
       - tempo_config:/etc/tempo
+      - ./configs/tempo.yml:/etc/tempo/tempo.yml:ro
       - tempo_data:/var/tempo
     command: ["-config.file=/etc/tempo/tempo.yml"]
-    ports:
-      - "3200:3200"
-    networks: 
-      - monitoring
-      - observability
+    expose:
+      - 3200
+    networks: [monitoring]
 
   # -------- ALLOY --------
-  alloy-init:
-    image: busybox
-    volumes:
-      - alloy_config:/etc/alloy
-      - ./configs/alloy.hcl:/src/alloy.hcl:ro
-    command: ["sh", "-c", "cp /src/alloy.hcl /etc/alloy/alloy.hcl"]
-
   alloy:
     image: grafana/alloy:latest
-    depends_on: [alloy-init, tempo]
+    depends_on: [tempo]
     volumes:
       - alloy_config:/etc/alloy
+      - ./configs/alloy.hcl:/etc/alloy/alloy.hcl:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     command:
       - run
       - /etc/alloy/alloy.hcl
-    ports:
-      - "4317:4317"
-      - "4318:4318"
-      - "12345:12345"
-    networks: 
-      - monitoring
-      - observability
+    expose:
+      - 4317
+      - 4318
+      - 12345
+    networks: [monitoring]
