@@ -9,6 +9,7 @@ import (
 
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/auth"
 	"dev.azure.com/saisona/Munchin/munchin-api/pkg/telemetry"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -17,6 +18,19 @@ import (
 type DBLobbyRepo struct {
 	db     *gorm.DB
 	tracer trace.Tracer
+}
+
+// Delete implements [LobbyRepository].
+func (dlr DBLobbyRepo) Delete(ctx context.Context, lobbyID string) error {
+	ctxTracer, span := dlr.tracer.Start(ctx, "repo.deleteLobby")
+	span.SetAttributes(attribute.String("lobbyID", lobbyID))
+	defer span.End()
+
+	if err := dlr.db.Debug().WithContext(ctxTracer).First(&Lobby{ID: lobbyID}).Error; err != nil {
+		return err
+	} else {
+		return dlr.db.WithContext(ctxTracer).Delete(&Lobby{ID: lobbyID}).Error
+	}
 }
 
 // Fetch implements [LobbyRepository].

@@ -201,6 +201,27 @@ paths:
       summary: Create a new lobby
       tags:
       - lobby
+  /lobby/{id}:
+    delete:
+      description: Delete a specified lobby.
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: When deleting a lobby, a 204 NoContent is received
+        "401":
+          description: Unauthorized
+          schema:
+            type: string
+        "404":
+          description: Lobby Not Found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get all lobbies
+      tags:
+      - lobby
   /lobby/{id}/join:
     post:
       description: Join an existing game lobby as the authenticated player.

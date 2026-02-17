@@ -33,6 +33,8 @@ func mapRegisterError(err error) error {
 		return echo.NewHTTPError(http.StatusLocked, ErrFullLobby)
 	case errors.Is(err, ErrPlayerAlreadyInLobby):
 		return echo.NewHTTPError(http.StatusNotModified, ErrPlayerAlreadyInLobby)
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		return echo.NewHTTPError(http.StatusNotFound, ErrUnknownLobby)
 	default:
 		return echo.ErrInternalServerError
 	}
@@ -63,13 +65,14 @@ func (h Handler) HandleNewLobby(c echo.Context) error {
 		}
 		return c.JSON(400, lcr)
 	}
+	gameStateID := fmt.Sprintf("gs-%s", playerID)
 
-	logger.With(slog.String("id", lobbyID)).DebugContext(c.Request().Context(), "lobby created")
+	logger.With(slog.String("id", lobbyID), slog.String("gameID", gameStateID)).DebugContext(c.Request().Context(), "lobby created")
 	// NOTE: Should the GameState be given by the handler ? I think not .. but.... who knows
 	// TODO: better handle creation of the playerDTO when creating the ROOM
 	// 1. create the Player DTO
 	// 2. pre-load or not his hand
-	_, errCreateRoom := h.gh.CreateRoom(lobbyID, game.NewGameState(fmt.Sprintf("gs-%s", playerID), []*game.Player{{
+	_, errCreateRoom := h.gh.CreateRoom(lobbyID, game.NewGameState(gameStateID, []*game.Player{{
 		ID:    playerID,
 		Name:  playerID,
 		Score: 0,
@@ -166,6 +169,23 @@ func (h Handler) GetAllLobbies(c echo.Context) error {
 		return mapRegisterError(err)
 	}
 	return c.JSON(200, lobbies)
+}
+
+// DeleteLobby godoc
+// @Summary Get all lobbies
+// @Security BearerAuth
+// @Description Delete a specified lobby.
+// @Tags lobby
+// @Produce json
+// @Success 204 "When deleting a lobby, a 204 NoContent is received"
+// @Failure 404 {string} string "Lobby Not Found"
+// @Failure 401 {string} string ""
+// @Router /lobby/{id} [delete]
+func (h Handler) DeleteLobby(c echo.Context) error {
+	if err := h.s.repo.Delete(c.Request().Context(), c.Param("id")); err != nil {
+		return mapRegisterError(err)
+	}
+	return c.NoContent(204)
 }
 
 // LobbyListResponse represents a paginated lobby list response.

@@ -15,6 +15,7 @@ type LobbyRepository interface {
 	Create(context.Context, *Lobby) error
 	Find(context.Context, string) (*Lobby, error)
 	Fetch(context.Context) ([]Lobby, error)
+	Delete(context.Context, string) error
 	FinishGame(context.Context, string) error
 	StartGame(context.Context, string) error
 	AddPlayer(context.Context, string, *auth.Player) error

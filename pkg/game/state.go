@@ -6,7 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"dev.azure.com/saisona/Munchin/munchin-api/pkg/telemetry"
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // GameState is the authoritative, mutable state.
@@ -58,7 +60,6 @@ func (s *GameState) Apply(cmd Command) error {
 			PlayerID: cmd.GetPlayerID(),
 			CardID:   cmd.GetCardID(),
 		})
-
 	case DrawCardCommand:
 		card, err := s.drawCard(cmd.GetPlayerID())
 		if err != nil {
@@ -78,6 +79,8 @@ func (s *GameState) Apply(cmd Command) error {
 	default:
 		return ErrUnknownCommand
 	}
+
+	telemetry.CommandsTotal.With(prometheus.Labels{"command": cmd.Type()}).Inc()
 
 	// bump version after successful command
 	s.version++

@@ -237,6 +237,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/lobby/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete a specified lobby.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "lobby"
+                ],
+                "summary": "Get all lobbies",
+                "responses": {
+                    "204": {
+                        "description": "When deleting a lobby, a 204 NoContent is received"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Lobby Not Found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/lobby/{id}/join": {
             "post": {
                 "security": [
@@ -449,6 +483,8 @@ var SwaggerInfo = &swag.Spec{
 	Description:      "This is the API for Munchin game backend",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
+	LeftDelim:        "{{",
+	RightDelim:       "}}",
 }
 
 func init() {

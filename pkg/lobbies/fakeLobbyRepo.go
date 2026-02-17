@@ -49,6 +49,11 @@ type FakeLobbyRepo struct {
 	fakeDate []Lobby
 }
 
+// Delete implements [LobbyRepository].
+func (fpr FakeLobbyRepo) Delete(context.Context, string) error {
+	panic("unimplemented")
+}
+
 // ListForLobbyScene implements [LobbyRepository].
 func (fpr FakeLobbyRepo) ListForLobbyScene(context.Context, int, int) ([]LobbyListItem, error) {
 	panic("unimplemented")
