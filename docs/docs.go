@@ -483,8 +483,6 @@ var SwaggerInfo = &swag.Spec{
 	Description:      "This is the API for Munchin game backend",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
-	LeftDelim:        "{{",
-	RightDelim:       "}}",
 }
 
 func init() {
