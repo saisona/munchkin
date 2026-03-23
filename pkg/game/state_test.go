@@ -74,6 +74,36 @@ func TestGameStateAddPlayerDoesNotOverwriteExistingName(t *testing.T) {
 	}
 }
 
+func TestGameStateAddPlayerNormalizesDefaults(t *testing.T) {
+	state := NewGameState("game-normalize", nil)
+
+	state.AddPlayer(&Player{
+		ID:   "p3",
+		Name: "Charlie",
+	})
+
+	player := state.players["p3"]
+	if player == nil {
+		t.Fatal("expected normalized player to be inserted")
+	}
+
+	if player.Level != 1 {
+		t.Fatalf("expected default level 1, got %d", player.Level)
+	}
+
+	if player.Race != RaceHuman {
+		t.Fatalf("expected default race %q, got %q", RaceHuman, player.Race)
+	}
+
+	if player.Class != ClassNone {
+		t.Fatalf("expected default class %q, got %q", ClassNone, player.Class)
+	}
+
+	if player.Sex != SexMale {
+		t.Fatalf("expected default sex %q, got %q", SexMale, player.Sex)
+	}
+}
+
 func TestGameStateRemovePlayerResetsStateWhenEmpty(t *testing.T) {
 	state := NewGameState("game-empty-after-remove", []*Player{{
 		ID:   "p1",
@@ -102,15 +132,38 @@ func TestGameStateToDTOExposesPrivateHandOnlyToRequestedPlayer(t *testing.T) {
 		{
 			ID:    "p1",
 			Name:  "Alice",
-			Score: 1,
+			Level: 3,
+			Sex:   SexFemale,
+			Race:  RaceElf,
+			Class: ClassWarrior,
 			Hand: []Card{
 				{ID: "card-1", Name: "Test Card"},
+			},
+			EquippedItems: []Equipment{
+				{
+					Card:       Card{ID: "eq-1", Name: "Sword"},
+					Slot:       EquipmentSlotHand,
+					Bonus:      2,
+					IsEquipped: true,
+				},
+			},
+			CarriedItems: []Equipment{
+				{
+					Card:       Card{ID: "carry-1", Name: "Big Rock"},
+					Slot:       EquipmentSlotNone,
+					Bonus:      0,
+					IsEquipped: false,
+					IsBig:      true,
+				},
 			},
 		},
 		{
 			ID:    "p2",
 			Name:  "Bob",
-			Score: 1,
+			Level: 2,
+			Sex:   SexMale,
+			Race:  RaceHuman,
+			Class: ClassNone,
 			Hand:  []Card{},
 		},
 	})
@@ -122,12 +175,38 @@ func TestGameStateToDTOExposesPrivateHandOnlyToRequestedPlayer(t *testing.T) {
 		t.Fatal("expected private player view for p1")
 	}
 
+	if dto.CurrentPlayer != "p1" {
+		t.Fatalf("expected current player p1, got %q", dto.CurrentPlayer)
+	}
+
 	if len(dto.You.Hand) != 1 {
 		t.Fatalf("expected one private hand card, got %d", len(dto.You.Hand))
 	}
 
+	if len(dto.You.CarriedItems) != 1 {
+		t.Fatalf("expected one carried item, got %d", len(dto.You.CarriedItems))
+	}
+
 	activePlayers := 0
 	for _, player := range dto.Players {
+		if player.ID == "p1" {
+			if player.Level != 3 {
+				t.Fatalf("expected p1 level 3, got %d", player.Level)
+			}
+			if player.Race != RaceElf {
+				t.Fatalf("expected p1 race %q, got %q", RaceElf, player.Race)
+			}
+			if player.Class != ClassWarrior {
+				t.Fatalf("expected p1 class %q, got %q", ClassWarrior, player.Class)
+			}
+			if player.CombatStrength != 5 {
+				t.Fatalf("expected p1 combat strength 5, got %d", player.CombatStrength)
+			}
+			if len(player.Equipment) != 1 {
+				t.Fatalf("expected one equipped item, got %d", len(player.Equipment))
+			}
+		}
+
 		if player.IsActive {
 			activePlayers++
 			if player.ID != "p1" {
@@ -177,13 +256,7 @@ func assertApplyPhase(t *testing.T, state *GameState, cmd PlayerActionCommand, e
 
 func newTestGameState() *GameState {
 	return NewGameState("game-test", []*Player{
-		{
-			ID:   "p1",
-			Name: "Alice",
-		},
-		{
-			ID:   "p2",
-			Name: "Bob",
-		},
+		NewPlayer("p1", "Alice"),
+		NewPlayer("p2", "Bob"),
 	})
 }

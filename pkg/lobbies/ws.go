@@ -48,12 +48,7 @@ func (h *Handler) GameWS(c echo.Context) error {
 
 		players := make([]*game.Player, 0, len(l.Players))
 		for _, lobbyPlayer := range l.Players {
-			players = append(players, &game.Player{
-				ID:    lobbyPlayer.ID,
-				Name:  lobbyPlayer.Username,
-				Score: 0,
-				Hand:  []game.Card{},
-			})
+			players = append(players, game.NewPlayer(lobbyPlayer.ID, lobbyPlayer.Username))
 		}
 
 		gameStateName := fmt.Sprintf("gs-%s", l.ID)

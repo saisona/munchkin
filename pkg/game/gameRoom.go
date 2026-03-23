@@ -113,10 +113,7 @@ func (r *GameRoom) handleCommand(cmd Command) {
 func (r *GameRoom) handleJoin(p *PlayerConn) {
 	// Register player
 	r.players[p.PlayerID] = p
-	r.state.AddPlayer(&Player{
-		ID:   p.PlayerID,
-		Name: p.PlayerID,
-	})
+	r.state.AddPlayer(NewPlayer(p.PlayerID, p.PlayerID))
 	telemetry.PlayersConnected.Inc()
 
 	logger.Info(

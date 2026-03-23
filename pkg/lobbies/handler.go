@@ -72,12 +72,9 @@ func (h Handler) HandleNewLobby(c echo.Context) error {
 	// TODO: better handle creation of the playerDTO when creating the ROOM
 	// 1. create the Player DTO
 	// 2. pre-load or not his hand
-	_, errCreateRoom := h.gh.CreateRoom(lobbyID, game.NewGameState(gameStateID, []*game.Player{{
-		ID:    playerID,
-		Name:  playerID,
-		Score: 0,
-		Hand:  []game.Card{},
-	}}))
+	_, errCreateRoom := h.gh.CreateRoom(lobbyID, game.NewGameState(gameStateID, []*game.Player{
+		game.NewPlayer(playerID, playerID),
+	}))
 	if errCreateRoom != nil {
 		return errCreateRoom
 	}

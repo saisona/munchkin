@@ -32,8 +32,9 @@ func NewGameState(gameID string, players []*Player) *GameState {
 	m := make(map[string]*Player, len(players))
 	order := make([]string, 0, len(players))
 	for _, p := range players {
-		m[p.ID] = p
-		order = append(order, p.ID)
+		normalized := normalizePlayer(p)
+		m[normalized.ID] = normalized
+		order = append(order, normalized.ID)
 	}
 
 	return &GameState{
@@ -100,6 +101,8 @@ func (s *GameState) AddPlayer(player *Player) {
 	if player == nil || player.ID == "" {
 		return
 	}
+
+	player = normalizePlayer(player)
 
 	if existing, ok := s.players[player.ID]; ok {
 		if existing.Name == "" && player.Name != "" {
@@ -226,6 +229,10 @@ func (s *GameState) drawCard(playerID string) (Card, error) {
 		ID:   uuid.NewString(),
 	}
 
+	if player, ok := s.players[playerID]; ok {
+		player.Hand = append(player.Hand, c)
+	}
+
 	logger.With(slog.String("CardID", c.ID), slog.String("playerID", playerID)).Info("card drawn")
 	return c, nil
 }
@@ -239,4 +246,39 @@ func generateCardName() string {
 	strBuilder.WriteString(uuid.NewString())
 	value := strBuilder.String()
 	return value
+}
+
+func normalizePlayer(player *Player) *Player {
+	if player == nil {
+		return nil
+	}
+
+	normalized := *player
+
+	if normalized.Name == "" {
+		normalized.Name = normalized.ID
+	}
+	if normalized.Level < 1 {
+		normalized.Level = 1
+	}
+	if normalized.Sex == "" {
+		normalized.Sex = SexMale
+	}
+	if normalized.Race == "" {
+		normalized.Race = RaceHuman
+	}
+	if normalized.Class == "" {
+		normalized.Class = ClassNone
+	}
+	if normalized.EquippedItems == nil {
+		normalized.EquippedItems = []Equipment{}
+	}
+	if normalized.CarriedItems == nil {
+		normalized.CarriedItems = []Equipment{}
+	}
+	if normalized.Hand == nil {
+		normalized.Hand = []Card{}
+	}
+
+	return &normalized
 }
