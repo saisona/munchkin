@@ -29,10 +29,8 @@ func (s *GameState) ToDTO(forPlayerID string) GameStateDTO {
 	}
 }
 
-func (s *GameState) isActivePlayer(_ string) bool {
-	// example rule: current turn belongs to player order
-	// adapt as needed
-	return s.turn%len(s.players) == 0
+func (s *GameState) isActivePlayer(playerID string) bool {
+	return s.currentPlayerID() == playerID
 }
 
 func toCardDTOs(cards []Card) []CardDTO {

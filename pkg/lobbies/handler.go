@@ -76,7 +76,7 @@ func (h Handler) HandleNewLobby(c echo.Context) error {
 		ID:    playerID,
 		Name:  playerID,
 		Score: 0,
-		Hand:  []game.Card{{Name: "fake_card", ID: "fake_card_id"}},
+		Hand:  []game.Card{},
 	}}))
 	if errCreateRoom != nil {
 		return errCreateRoom

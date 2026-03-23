@@ -38,20 +38,30 @@ func (h *Handler) GameWS(c echo.Context) error {
 
 	room, ok := h.gh.GetRoom(lobbyID)
 	if !ok {
-
 		l, err := h.s.repo.Find(c.Request().Context(), lobbyID)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUnknownLobby
-		} else {
-			// TODO: handle rebuild the room
-			fmt.Println("handle room")
-			gameStateName := fmt.Sprintf("gs-%s", l.ID)
-			gm, err := h.gh.CreateRoom(lobbyID, game.NewGameState(gameStateName, []*game.Player{}))
-			if err != nil {
-				return err
-			}
-			room = gm
 		}
+		if err != nil {
+			return err
+		}
+
+		players := make([]*game.Player, 0, len(l.Players))
+		for _, lobbyPlayer := range l.Players {
+			players = append(players, &game.Player{
+				ID:    lobbyPlayer.ID,
+				Name:  lobbyPlayer.Username,
+				Score: 0,
+				Hand:  []game.Card{},
+			})
+		}
+
+		gameStateName := fmt.Sprintf("gs-%s", l.ID)
+		gm, err := h.gh.CreateRoom(lobbyID, game.NewGameState(gameStateName, players))
+		if err != nil {
+			return err
+		}
+		room = gm
 	}
 
 	conn, err := upgrader.Upgrade(

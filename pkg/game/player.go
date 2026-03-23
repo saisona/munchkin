@@ -3,9 +3,11 @@ package game
 type Phase string
 
 const (
-	PhaseSetup Phase = "setup"
-	PhasePlay  Phase = "play"
-	PhaseEnd   Phase = "end"
+	PhaseSetup          Phase = "setup"
+	PhaseOpenDoor       Phase = "open_door"
+	PhaseLookForTrouble Phase = "look_for_trouble"
+	PhaseLootRoom       Phase = "loot_room"
+	PhaseCharity        Phase = "charity"
 )
 
 type Player struct {

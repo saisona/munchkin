@@ -6,8 +6,8 @@ type EventType string
 
 type BaseEvent struct {
 	Type      EventType `json:"type"`
-	GameID    string    `json:"gameId"`
-	Timestamp time.Time `json:"ts"`
+	GameID    string    `json:"gameId,omitempty"`
+	Timestamp time.Time `json:"timestamp"`
 	Version   int       `json:"version"`
 }
 
@@ -22,8 +22,8 @@ type GameSnapshotEvent struct {
 
 type CommandRejectedEvent struct {
 	BaseEvent
-	CommandType string
-	Reason      string
+	CommandType string `json:"commandType"`
+	Reason      string `json:"reason"`
 }
 type PlayerJoinedEvent struct {
 	BaseEvent
@@ -32,17 +32,23 @@ type PlayerJoinedEvent struct {
 
 type PlayerLeftEvent struct {
 	BaseEvent
-	PlayerID string
+	PlayerID string `json:"playerID"`
 }
 
 type CardPlayedEvent struct {
 	BaseEvent
-	PlayerID string
-	CardID   string
+	PlayerID string `json:"playerID"`
+	CardID   string `json:"cardID"`
 }
 
 type CardDrawnEvent struct {
 	BaseEvent
-	PlayerID string
-	CardID   string
+	PlayerID string `json:"playerID"`
+	CardID   string `json:"cardID"`
+}
+
+type TurnPhaseChangedEvent struct {
+	BaseEvent
+	PlayerID string `json:"playerID"`
+	Phase    string `json:"phase"`
 }

@@ -39,7 +39,7 @@ func (h *AppGameHub) CreateRoom(lobbyID string, initialState *GameState) (*GameR
 		return nil, ErrRoomAlreadyExists
 	}
 
-	room := NewGameRoom(lobbyID, initialState)
+	room := NewGameRoom(lobbyID, initialState, h.RemoveRoom)
 
 	h.rooms[lobbyID] = room
 
