@@ -56,19 +56,15 @@ var logger = slog.New(
 	telemetry.TraceHandler{Handler: slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{})},
 )
 
-// Healthz godoc
-// @Summary Health probe
-// @Description Liveness/readiness probe endpoint
-// @Tags health
-// @Success 204
-// @Router /healthz [get]
-func healthz(c echo.Context) error { return c.NoContent(http.StatusNoContent) }
-
 // @title Munchin API
 // @version 0.1
-// @description This is the API for Munchin game backend
+// @description Backend API for the educational Munchkin-inspired card game.
 // @host localhost:1337
 // @BasePath /
+// @schemes http
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 func main() {
 	ctx := context.Background()
 

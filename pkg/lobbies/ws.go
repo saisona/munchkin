@@ -23,14 +23,15 @@ var upgrader = websocket.Upgrader{
 
 // GameWS godoc
 //
-// @Summary      Join lobby WebSocket
-// @Description  Establish a WebSocket connection for a lobby
-// @Tags         lobby
-// @Param        id   path      string  true  "Lobby ID"
-// @Success      101  {string}  string "Switching Protocols"
-// @Failure      500
-// @Router       /lobby/{id}/ws [get]
-// @Security     BearerAuth
+// @Summary Connect lobby WebSocket
+// @Description Upgrades the HTTP connection to WebSocket for real-time lobby and game events.
+// @Tags lobby
+// @Param id path string true "Lobby ID"
+// @Success 101 {string} string "Switching Protocols"
+// @Failure 404 {string} string "Lobby not found"
+// @Failure 500 {string} string "Internal server error"
+// @Router /lobby/{id}/ws [get]
+// @Security BearerAuth
 func (h *Handler) GameWS(c echo.Context) error {
 	lobbyID := c.Param("id")
 	playerID := c.Get("playerID").(string)
