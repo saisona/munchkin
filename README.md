@@ -1,137 +1,210 @@
-# Munchin Backend
+# Munchin API
 
-Munchin is a backend service for an online, turn-based, card-game-inspired experience (loosely inspired by games like *Munchkin*, but with original mechanics and content).
+Munchin is a Go backend for an educational, turn-based, card-game-inspired experience influenced by Munchkin.
 
-This repository contains the **Go backend**, built with a strong focus on:
-- Clear architectural boundaries
-- Testability
-- Observability (Prometheus + Grafana)
-- Incremental scalability
+The project currently focuses on backend foundations:
+- authentication
+- lobby lifecycle
+- real-time room connectivity over WebSocket
+- early gameplay state management
+- observability
+- testability
 
-At the current stage, the backend implements **authentication** and **lobby management**. Gameplay will be added later on top of these foundations.
-
----
-
-## High-level architecture
-
-The backend follows a layered, dependency-inverted design:
-
-
-Key principles:
-- Services are **pure business logic** (no Echo, no HTTP).
-- Handlers adapt HTTP requests to services.
-- Routing only wires paths to handlers.
-- Metrics and middleware are centralized and explicit.
+Gameplay is still incomplete, but the repository now includes the first building blocks for turn state, player projection, smoke testing, and API documentation.
 
 ---
 
-## Tech stack
+## Current Scope
 
-- **Language**: Go (>= 1.22 recommended)
-- **HTTP framework**: Echo v4
-- **Auth**: JWT (HS256, symmetric key)
-- **Metrics**: Prometheus
-- **Visualization**: Grafana
-- **Password hashing**: bcrypt
+Implemented today:
+- player registration and login
+- JWT-based protected routes
+- lobby creation, listing, join, start, delete
+- health and readiness probes
+- Swagger/OpenAPI source annotations
+- WebSocket room connection
+- initial game snapshot and first turn actions
+- unit tests around the game core
+- a Go smoke test for end-to-end validation
 
----
-
-## Project structure
-
-Each package contains a `doc.go` file describing its responsibilities and boundaries.
-
----
-
-## Authentication
-
-Authentication is based on **JWT (HS256)**.
-
-### Implemented features
-- Player registration (`POST /auth/register`)
-- Player login (`POST /auth/login`)
-- Identity endpoint (`GET /auth/me`)
-- JWT verification middleware
-- Prometheus metrics for auth success/failure
-
-### JWT details
-- Tokens contain the player ID as the `sub` claim
-- Tokens are signed with a symmetric secret (`JWT_SECRET`)
-- Token verification happens in middleware
-- Business logic never parses JWTs directly
+Not fully implemented yet:
+- full deck management
+- complete combat resolution
+- full Munchkin card taxonomy
+- advanced class/race abilities
+- production-grade reconnect semantics
 
 ---
 
-## Lobby management
+## Tech Stack
 
-Lobbies represent **pre-game coordination spaces**.
-
-### Implemented features
-- Create a lobby
-- List lobbies
-- Join / leave a lobby
-- Host-driven game start (future hook)
-
-Lobbies are intentionally kept **separate from gameplay logic**.  
-A lobby will later map 1:1 to a game instance.
+- Go
+- Echo v4
+- GORM + PostgreSQL
+- Gorilla WebSocket
+- JWT authentication
+- Prometheus / Grafana
+- Swagger via `swag`
 
 ---
 
-## Observability
+## Architecture
 
-### Metrics
-The service exposes Prometheus metrics at: `GET /metrics`
+The backend follows a layered design:
 
-Examples:
-- `munchin_http_request_duration_seconds`
-- `munchin_auth_success_total`
-- `munchin_auth_failures_total`
-- `munchin_lobby_active`
+- `pkg/auth`: authentication and JWT
+- `pkg/lobbies`: lobby lifecycle and pre-game coordination
+- `pkg/game`: in-memory game room, state, commands, events, DTOs
+- `pkg/api`: route wiring
+- `pkg/health`: liveness, startup, readiness probes
+- `pkg/telemetry`: metrics and tracing integration
 
-Metrics are:
-- Declared centrally
-- Registered once at startup
-- Emitted from middleware and services (not handlers)
-
-### Logging
-- Structured logging (Echo middleware)
-- Request IDs attached early in the request lifecycle
+Guiding principles:
+- services own business logic
+- handlers adapt transport concerns
+- routing stays thin
+- state mutation should flow through the room/game engine
+- observability is explicit and centralized
 
 ---
 
-## Configuration
+## Main Endpoints
 
-Configuration is provided via environment variables.
+### Auth
 
-| Variable       | Description                          |
-|----------------|--------------------------------------|
-| `JWT_SECRET`   | Secret used to sign JWTs (required)  |
-| `PORT`         | HTTP port (default: 1337)            |
+- `POST /auth/register`
+- `POST /auth/login`
+
+### Health
+
+- `GET /healthz`
+- `GET /startupz`
+- `GET /readyz`
+- `GET /metrics`
+
+### Lobbies
+
+- `POST /lobby`
+- `GET /lobby`
+- `GET /lobby/model`
+- `DELETE /lobby/{id}`
+- `POST /lobby/{id}/join`
+- `POST /lobby/{id}/start`
+- `GET /lobby/{id}/ws`
+
+### Swagger
+
+- `GET /swagger/index.html`
+
+---
+
+## WebSocket Notes
+
+The current WebSocket endpoint is:
+
+`GET /lobby/{id}/ws?token=<jwt>`
+
+Important:
+- the WebSocket authentication currently relies on the `token` query parameter
+- this is documented in the Swagger godoc for the endpoint
+- this differs from the rest of the HTTP API, which uses `Authorization: Bearer <jwt>`
+
+The current protocol reference lives in [PROTOCOL.md](/Users/inarix-alexandre-saison/Workspace/Dev/PERSO/Munchin/munchin-api/PROTOCOL.md).
+
+---
+
+## Local Run
+
+### Prerequisites
+
+- Go installed and available in `PATH`
+- PostgreSQL, or Docker Compose
+- `JWT_SECRET` configured
 
 Example:
+
 ```bash
 export JWT_SECRET=$(openssl rand -base64 32)
 export PORT=1337
 ```
-## Running locally
+
+### Run with Go
 
 ```bash
 go run ./cmd/server
 ```
 
-Then:
+### Run with Docker Compose
 
-API available at `http://localhost:1337`
+```bash
+docker compose up --build
+```
 
-Metrics at `http://localhost:1337/metrics`
+Default local URLs:
 
-## End-to-end smoke test
+- API: [http://localhost:1337](http://localhost:1337)
+- Swagger: [http://localhost:1337/swagger/index.html](http://localhost:1337/swagger/index.html)
+- Metrics: [http://localhost:1337/metrics](http://localhost:1337/metrics)
 
-The repository includes a small Go smoke test that exercises the main happy path:
-- player registration
-- lobby creation
-- lobby listing
-- WebSocket connection
-- a first `PLAYER_ACTION`
+---
+
+## Useful Commands
+
+Available through the `Makefile`:
+
+```bash
+make build
+make run
+make dev
+make test
+make fmt
+make lint
+make swagger
+make e2e-smoke
+```
+
+What they do:
+- `make test`: runs Go tests with race detector and coverage
+- `make swagger`: regenerates Swagger docs from source comments
+- `make e2e-smoke`: runs the Go end-to-end smoke test
+
+---
+
+## Testing
+
+### Unit Tests
+
+Run all tests:
+
+```bash
+make test
+```
+
+Run only the game package:
+
+```bash
+go test ./pkg/game -v
+```
+
+Current unit-test coverage focuses on:
+- command decoding
+- player defaults
+- combat strength computation
+- turn phase progression
+- invalid turn / invalid phase rejection
+- DTO projection behavior
+
+### End-to-End Smoke Test
+
+The repository includes a small Go smoke test under `cmd/e2e-smoke`.
+
+It validates the happy path:
+- register player
+- create lobby
+- list lobbies
+- connect to WebSocket
+- read initial snapshot
+- send first `PLAYER_ACTION`
 
 Run it with:
 
@@ -153,15 +226,80 @@ MUNCHIN_E2E_USERNAME=my-test-user
 MUNCHIN_E2E_PASSWORD=secret123
 ```
 
-Testing philosophy
+If no username is provided, the smoke test generates a unique one automatically.
 
-Services are tested in isolation using fake repositories
+---
 
-Handlers are tested with httptest
+## Swagger / OpenAPI
 
-Routing can be tested end-to-end via Echo
+Swagger source annotations are maintained in handlers and shared DTOs.
 
-Middleware is unit-tested separately
+To regenerate docs:
 
-No business logic lives in handlers or routers.
+```bash
+make swagger
+```
 
+This uses:
+
+```bash
+swag init -g cmd/server/main.go --parseInternal
+```
+
+If `swag` is not installed:
+
+```bash
+go install github.com/swaggo/swag/cmd/swag@latest
+export PATH="$PATH:$(go env GOPATH)/bin"
+```
+
+---
+
+## Observability
+
+### Metrics
+
+Prometheus metrics are exposed at:
+
+`GET /metrics`
+
+Examples:
+- `munchin_http_request_duration_seconds`
+- `munchin_auth_success_total`
+- `munchin_auth_failures_total`
+- `munchin_lobby_active`
+
+### Logging
+
+- structured logging
+- request-scoped middleware
+- telemetry hooks for traces and metrics
+
+---
+
+## Project Status
+
+This repository is in an active foundation-building phase.
+
+What is already improving:
+- domain shape
+- room/state flow
+- DTO consistency
+- testability
+- API documentation
+- local validation workflow
+
+What still needs major implementation work:
+- full rules engine
+- deck/discard behavior
+- treasure/dungeon flow
+- combat and flee resolution
+- richer client/server event contract
+
+---
+
+## Related Docs
+
+- [AGENTS.md](/Users/inarix-alexandre-saison/Workspace/Dev/PERSO/Munchin/munchin-api/AGENTS.md)
+- [PROTOCOL.md](/Users/inarix-alexandre-saison/Workspace/Dev/PERSO/Munchin/munchin-api/PROTOCOL.md)
+- [CHANGELOG.md](/Users/inarix-alexandre-saison/Workspace/Dev/PERSO/Munchin/munchin-api/CHANGELOG.md)
