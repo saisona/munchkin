@@ -36,6 +36,7 @@ help:
 	@echo "  make lint         Run golangci-lint"
 	@echo "  make fmt          Format Go code"
 	@echo "  make swagger      Generate Swagger docs"
+	@echo "  make e2e-smoke    Run the end-to-end smoke test"
 	@echo "  make clean        Clean build artifacts"
 	@echo ""
 
@@ -86,6 +87,11 @@ lint:
 swagger:
 	@echo ">> Generating Swagger docs"
 	swag init -g cmd/server/main.go --parseInternal	
+
+.PHONY: e2e-smoke
+e2e-smoke:
+	@echo ">> Running E2E smoke test"
+	$(GO) run ./cmd/e2e-smoke
 
 # =========================
 # Cleanup

@@ -17,7 +17,7 @@ const docTemplate = `{
     "paths": {
         "/auth/login": {
             "post": {
-                "description": "Authenticate a user using username and password and return a JWT token.",
+                "description": "Authenticates a player using username and password and returns a JWT bearer token.",
                 "consumes": [
                     "application/json"
                 ],
@@ -27,10 +27,10 @@ const docTemplate = `{
                 "tags": [
                     "auth"
                 ],
-                "summary": "Authenticate a user",
+                "summary": "Log in a player",
                 "parameters": [
                     {
-                        "description": "Authentication credentials",
+                        "description": "Login credentials",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -41,13 +41,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Authentication successful",
+                        "description": "JWT bearer token",
                         "schema": {
                             "$ref": "#/definitions/auth.AuthResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid credentials or malformed request",
+                        "description": "Malformed request or invalid credentials",
                         "schema": {
                             "type": "string"
                         }
@@ -63,7 +63,7 @@ const docTemplate = `{
         },
         "/auth/register": {
             "post": {
-                "description": "Register a new user with username and password and return a JWT token.",
+                "description": "Creates a new player account and returns a JWT bearer token for immediate authenticated use.",
                 "consumes": [
                     "application/json"
                 ],
@@ -73,7 +73,7 @@ const docTemplate = `{
                 "tags": [
                     "auth"
                 ],
-                "summary": "Register a new user",
+                "summary": "Register a new player",
                 "parameters": [
                     {
                         "description": "Registration credentials",
@@ -87,13 +87,19 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Registration successful",
+                        "description": "JWT bearer token",
                         "schema": {
                             "$ref": "#/definitions/auth.AuthResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request or user already exists",
+                        "description": "Malformed request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Username already taken",
                         "schema": {
                             "type": "string"
                         }
@@ -109,14 +115,14 @@ const docTemplate = `{
         },
         "/healthz": {
             "get": {
-                "description": "Liveness/readiness probe endpoint",
+                "description": "Returns 204 when the API process is alive.",
                 "tags": [
                     "health"
                 ],
-                "summary": "Health probe",
+                "summary": "Liveness probe",
                 "responses": {
                     "204": {
-                        "description": "No Content"
+                        "description": "Process is alive"
                     }
                 }
             }
@@ -128,7 +134,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve a paginated list of lobbies for the lobby selection scene (Game Endpoint).",
+                "description": "Retrieves a paginated lobby list for the lobby selection screen.",
                 "produces": [
                     "application/json"
                 ],
@@ -173,23 +179,23 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new game lobby and initialize its game room for the authenticated player.",
+                "description": "Creates a new lobby for the authenticated player and initializes the in-memory game room.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "lobby"
                 ],
-                "summary": "Create a new lobby",
+                "summary": "Create lobby",
                 "responses": {
                     "201": {
-                        "description": "Lobby successfully created",
+                        "description": "Lobby created",
                         "schema": {
                             "$ref": "#/definitions/lobbies.LobbyCreationResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request or unknown lobby",
+                        "description": "Invalid request",
                         "schema": {
                             "$ref": "#/definitions/lobbies.LobbyCreationResponse"
                         }
@@ -210,14 +216,14 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve all lobbies without pagination.",
+                "description": "Returns the full lobby collection without pagination. Intended mainly for administration or debugging.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "lobby"
                 ],
-                "summary": "Get all lobbies",
+                "summary": "List all lobbies",
                 "responses": {
                     "200": {
                         "description": "List of lobbies",
@@ -244,14 +250,23 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Delete a specified lobby.",
+                "description": "Deletes a lobby by identifier.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "lobby"
                 ],
-                "summary": "Get all lobbies",
+                "summary": "Delete lobby",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Lobby ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "204": {
                         "description": "When deleting a lobby, a 204 NoContent is received"
@@ -263,7 +278,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "Lobby Not Found",
+                        "description": "Lobby not found",
                         "schema": {
                             "type": "string"
                         }
@@ -278,11 +293,11 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Join an existing game lobby as the authenticated player.",
+                "description": "Adds the authenticated player to an existing lobby before the game starts.",
                 "tags": [
-                    "game"
+                    "lobby"
                 ],
-                "summary": "Join a game",
+                "summary": "Join lobby",
                 "parameters": [
                     {
                         "type": "string",
@@ -294,7 +309,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successfully joined the game",
+                        "description": "Successfully joined the lobby",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "304": {
+                        "description": "Player already in lobby",
                         "schema": {
                             "type": "string"
                         }
@@ -307,6 +328,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Lobby not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "423": {
+                        "description": "Lobby is full",
                         "schema": {
                             "type": "string"
                         }
@@ -327,11 +354,11 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Start the game associated with a lobby.",
+                "description": "Marks the lobby as started and transitions it into the in-game state.",
                 "tags": [
-                    "game"
+                    "lobby"
                 ],
-                "summary": "Start a game",
+                "summary": "Start lobby game",
                 "parameters": [
                     {
                         "type": "string",
@@ -343,12 +370,18 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": "Game started"
                     },
                     "400": {
                         "description": "Missing lobby ID or invalid lobby",
                         "schema": {
                             "$ref": "#/definitions/lobbies.LobbyCreationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Lobby not found",
+                        "schema": {
+                            "type": "string"
                         }
                     },
                     "500": {
@@ -362,22 +395,24 @@ const docTemplate = `{
         },
         "/lobby/{id}/ws": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Establish a WebSocket connection for a lobby",
+                "description": "Upgrades the HTTP connection to WebSocket for real-time lobby and game events. Authentication currently relies on the JWT provided as the ` + "`" + `token` + "`" + ` query parameter.",
                 "tags": [
                     "lobby"
                 ],
-                "summary": "Join lobby WebSocket",
+                "summary": "Connect lobby WebSocket",
                 "parameters": [
                     {
                         "type": "string",
                         "description": "Lobby ID",
                         "name": "id",
                         "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "JWT access token used to authenticate the WebSocket connection",
+                        "name": "token",
+                        "in": "query",
                         "required": true
                     }
                 ],
@@ -388,8 +423,51 @@ const docTemplate = `{
                             "type": "string"
                         }
                     },
+                    "404": {
+                        "description": "Lobby not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
                     "500": {
-                        "description": "Internal Server Error"
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/readyz": {
+            "get": {
+                "description": "Returns 204 when dependencies are ready to serve traffic, otherwise 503.",
+                "tags": [
+                    "health"
+                ],
+                "summary": "Readiness probe",
+                "responses": {
+                    "204": {
+                        "description": "Dependencies are ready"
+                    },
+                    "503": {
+                        "description": "Dependencies are not ready"
+                    }
+                }
+            }
+        },
+        "/startupz": {
+            "get": {
+                "description": "Returns 204 when application startup has completed, otherwise 503.",
+                "tags": [
+                    "health"
+                ],
+                "summary": "Startup probe",
+                "responses": {
+                    "204": {
+                        "description": "Application startup completed"
+                    },
+                    "503": {
+                        "description": "Application still starting"
                     }
                 }
             }
@@ -422,9 +500,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "error": {
+                    "description": "Optional error message when the request fails.\nexample: requested lobby not found or game already started",
                     "type": "string"
                 },
                 "lobby_id": {
+                    "description": "Unique lobby identifier.\nexample: 7f0f7c90-cf17-4f54-a62f-f6fbc6399d7c",
                     "type": "string"
                 }
             }
@@ -470,6 +550,13 @@ const docTemplate = `{
                 }
             }
         }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
     }
 }`
 
@@ -478,9 +565,9 @@ var SwaggerInfo = &swag.Spec{
 	Version:          "0.1",
 	Host:             "localhost:1337",
 	BasePath:         "/",
-	Schemes:          []string{},
+	Schemes:          []string{"http"},
 	Title:            "Munchin API",
-	Description:      "This is the API for Munchin game backend",
+	Description:      "Backend API for the educational Munchkin-inspired card game.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 }

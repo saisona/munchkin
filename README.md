@@ -124,6 +124,35 @@ API available at `http://localhost:1337`
 
 Metrics at `http://localhost:1337/metrics`
 
+## End-to-end smoke test
+
+The repository includes a small Go smoke test that exercises the main happy path:
+- player registration
+- lobby creation
+- lobby listing
+- WebSocket connection
+- a first `PLAYER_ACTION`
+
+Run it with:
+
+```bash
+go run ./cmd/e2e-smoke
+```
+
+or:
+
+```bash
+make e2e-smoke
+```
+
+Optional environment variables:
+
+```bash
+MUNCHIN_BASE_URL=http://localhost:1337
+MUNCHIN_E2E_USERNAME=my-test-user
+MUNCHIN_E2E_PASSWORD=secret123
+```
+
 Testing philosophy
 
 Services are tested in isolation using fake repositories

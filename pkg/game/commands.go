@@ -20,16 +20,19 @@ const (
 	ActionEndTurn        PlayerActionType = "END_TURN"
 )
 
+// CommandEnvelope is the generic WebSocket message envelope.
 type CommandEnvelope struct {
 	Type MessageType     `json:"type"`
 	Data json.RawMessage `json:"data"`
 }
 
+// PlayerActionPayload is the WebSocket payload for a turn action.
 type PlayerActionPayload struct {
 	Action    PlayerActionType `json:"action"`
 	Timestamp time.Time        `json:"timestamp"`
 }
 
+// PlayerActionCommand is the decoded server-side command for turn actions.
 type PlayerActionCommand struct {
 	PlayerID  string
 	Action    PlayerActionType
@@ -44,6 +47,7 @@ func (c PlayerActionCommand) Type() string {
 	return string(MessageTypePlayerAction)
 }
 
+// PlayCardCommand models a future explicit play-card action.
 type PlayCardCommand struct {
 	PlayerID string
 	CardID   string
@@ -61,6 +65,7 @@ func (c PlayCardCommand) GetCardID() string {
 	return c.CardID
 }
 
+// DrawCardCommand models a future explicit draw-card action.
 type DrawCardCommand struct {
 	PlayerID string
 }

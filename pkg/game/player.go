@@ -47,19 +47,33 @@ const (
 	EquipmentSlotNone     EquipmentSlot = "NONE"
 )
 
+// Card represents a simplified card view used by the current backend state.
 type Card struct {
+	// Unique card identifier.
 	ID   string `json:"id"`
+
+	// Display name of the card.
 	Name string `json:"name"`
 }
 
+// Equipment represents an item card visible on the board.
 type Equipment struct {
 	Card
+
+	// Board slot occupied by the equipment.
 	Slot       EquipmentSlot `json:"slot"`
+
+	// Combat bonus granted by the equipment.
 	Bonus      int           `json:"bonus"`
+
+	// Indicates whether the item is currently equipped.
 	IsEquipped bool          `json:"isEquipped"`
+
+	// Indicates whether the item is considered a big item.
 	IsBig      bool          `json:"isBig"`
 }
 
+// Player is the in-memory authoritative representation of a player state.
 type Player struct {
 	ID                    string
 	Name                  string
@@ -79,6 +93,7 @@ type Player struct {
 	AvailableRunAwayBonus int
 }
 
+// NewPlayer creates a player with Munchkin-aligned defaults.
 func NewPlayer(id string, name string) *Player {
 	if name == "" {
 		name = id
@@ -99,6 +114,7 @@ func NewPlayer(id string, name string) *Player {
 	}
 }
 
+// CombatStrength returns the current combat strength from level and equipped items.
 func (p *Player) CombatStrength() int {
 	total := p.Level
 	for _, item := range p.EquippedItems {
