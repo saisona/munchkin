@@ -1,14 +1,16 @@
 # Munchkin Game WebSocket Protocol Specification
 
 ## Overview
-This document defines the WebSocket message protocol for real-time gameplay communication between the Munchkin game server and clients. The WebSocket endpoint is `/lobby/{id}/ws` (authenticated with JWT).
+This document defines the WebSocket message protocol for real-time lobby management and gameplay communication between the Munchkin game server and clients. The WebSocket endpoint is `/lobby/{id}/ws` (authenticated with JWT).
 
 ## Connection Lifecycle
 1. **Authentication**: Client authenticates via HTTP `POST /auth/login` to get JWT
-2. **Connection**: Client connects to `ws://{host}:1337/lobby/{id}/ws` with JWT in Authorization header
-3. **Game Start**: After all players join, host calls `POST /lobby/{id}/start` to begin game
-4. **Gameplay**: Real-time messages flow via WebSocket
-5. **Disconnection**: Client reconnects using same JWT, receives full game state
+2. **Connection**: Client connects to `ws://{host}:1337/lobby/{id}/ws?token={jwt_token}` with JWT in query parameter
+3. **Lobby Join**: Upon connection, server sends `LOBBY_STATE` with current lobby status
+4. **Lobby Management**: Players can set ready status, chat, and host can change settings/kick players
+5. **Game Start**: Host or automatic trigger starts game → server sends `GAME_STARTING` countdown → `GAME_STARTED` with initial state
+6. **Gameplay**: Real-time messages flow via WebSocket
+7. **Disconnection**: Client reconnects using same JWT, receives `LOBBY_STATE` (if in lobby) or `GAME_STATE` (if in game)
 
 ## Message Format
 All messages are JSON objects with a `type` field and `data` payload:
@@ -23,14 +25,6 @@ All messages are JSON objects with a `type` field and `data` payload:
 
 ### Game Actions
 ```json
-// Join the game (after WebSocket connection)
-{
-  "type": "JOIN_GAME",
-  "data": {
-    "player_id": "uuid-from-auth"
-  }
-}
-
 // Player takes an action during their turn
 {
   "type": "PLAYER_ACTION",
@@ -84,9 +78,165 @@ All messages are JSON objects with a `type` field and `data` payload:
 }
 ```
 
-## Server → Client Messages
+## Lobby Events (Server → Client)
 
-### Game State Updates
+### Lobby State Updates
+These messages are sent to all clients in the lobby while waiting for the game to start.
+
+```json
+// Lobby full state snapshot (when player joins or reconnects)
+{
+  "type": "LOBBY_STATE",
+  "data": {
+    "lobby_id": "lobby-uuid",
+    "host_id": "player-uuid",
+    "players": [
+      {
+        "id": "player-uuid",
+        "name": "Player Name",
+        "is_host": true,
+        "is_ready": false,
+        "avatar": "avatar_id"  // optional
+      }
+    ],
+    "game_in_progress": false,
+    "max_players": 6,
+    "current_players": 3,
+    "settings": {
+      "timer_enabled": true,
+      "turn_time_limit": 120,  // seconds
+      "combat_interaction_time": 30  // seconds
+    }
+  }
+}
+
+// Player joined the lobby
+{
+  "type": "PLAYER_JOINED",
+  "data": {
+    "player_id": "player-uuid",
+    "name": "Player Name",
+    "is_host": false,
+    "current_players": 4  // updated count
+  }
+}
+
+// Player left the lobby
+{
+  "type": "PLAYER_LEFT",
+  "data": {
+    "player_id": "player-uuid",
+    "name": "Player Name",
+    "reason": "DISCONNECTED" | "KICKED" | "VOLUNTARY",
+    "current_players": 3  // updated count
+  }
+}
+
+// Player changed ready status
+{
+  "type": "PLAYER_READY_CHANGE",
+  "data": {
+    "player_id": "player-uuid",
+    "is_ready": true
+  }
+}
+
+// Host changed lobby settings
+{
+  "type": "LOBBY_SETTINGS_CHANGE",
+  "data": {
+    "settings": {
+      "timer_enabled": false,
+      "turn_time_limit": 90,
+      "combat_interaction_time": 45
+    },
+    "changed_by": "player-uuid"
+  }
+}
+
+// Game starting countdown
+{
+  "type": "GAME_STARTING",
+  "data": {
+    "countdown": 10,  // seconds until game starts
+    "reason": "ALL_READY" | "HOST_FORCED" | "TIMER_EXPIRED"
+  }
+}
+
+// Game started
+{
+  "type": "GAME_STARTED",
+  "data": {
+    "first_player_id": "player-uuid",
+    "initial_hand_size": 8,
+    "initial_state": {
+      // Full game state as defined in GAME_STATE message
+    }
+  }
+}
+```
+
+### Lobby Actions (Client → Server)
+These messages are sent by clients while in the lobby.
+
+```json
+// Set ready status
+{
+  "type": "SET_READY",
+  "data": {
+    "is_ready": true
+  }
+}
+
+// Change lobby settings (host only)
+{
+  "type": "CHANGE_SETTINGS",
+  "data": {
+    "timer_enabled": true,
+    "turn_time_limit": 120,
+    "combat_interaction_time": 30
+  }
+}
+
+// Kick player (host only)
+{
+  "type": "KICK_PLAYER",
+  "data": {
+    "player_id": "player-uuid",
+    "reason": "AFK" | "DISRUPTIVE" | "OTHER"
+  }
+}
+
+// Start game (host only)
+{
+  "type": "START_GAME",
+  "data": {
+    "force_start": false  // start even if not all players ready
+  }
+}
+
+// Send chat message
+{
+  "type": "LOBBY_CHAT",
+  "data": {
+    "message": "Hello everyone!",
+    "timestamp": "2024-03-13T20:30:00Z"
+  }
+}
+
+// Receive chat message (Server → Client)
+{
+  "type": "LOBBY_CHAT_MESSAGE",
+  "data": {
+    "player_id": "player-uuid",
+    "player_name": "Player Name",
+    "message": "Hello everyone!",
+    "timestamp": "2024-03-13T20:30:00Z"
+  }
+}
+```
+
+## Server → Client Messages (Gameplay)
 ```json
 // Full game state (on connection or major change)
 {
@@ -235,6 +385,33 @@ All messages are JSON objects with a `type` field and `data` payload:
 
 ## Data Types Reference
 
+### Lobby Types
+```typescript
+interface LobbyPlayer {
+  id: string;
+  name: string;
+  is_host: boolean;
+  is_ready: boolean;
+  avatar?: string;  // avatar identifier
+}
+
+interface LobbySettings {
+  timer_enabled: boolean;
+  turn_time_limit: number;  // seconds
+  combat_interaction_time: number;  // seconds
+}
+
+interface LobbyState {
+  lobby_id: string;
+  host_id: string;
+  players: LobbyPlayer[];
+  game_in_progress: boolean;
+  max_players: number;  // 3-6
+  current_players: number;
+  settings: LobbySettings;
+}
+```
+
 ### Card Types (from §4 of game rules)
 ```typescript
 interface CardBase {
@@ -316,6 +493,32 @@ interface EquipmentSlot {
 
 ## Sequence Examples
 
+### 0. Lobby Interaction Flow
+```
+Player 1 creates lobby:
+  Player 2 joins:
+    ← LOBBY_STATE {...players: [P1, P2]...}
+    ← PLAYER_JOINED {player_id: P2, name: "Player 2"}
+  
+  Player 3 joins:
+    ← LOBBY_STATE {...players: [P1, P2, P3]...}
+    ← PLAYER_JOINED {player_id: P3, name: "Player 3"}
+  
+  Player 2 sets ready:
+    → SET_READY {is_ready: true}
+    ← PLAYER_READY_CHANGE {player_id: P2, is_ready: true}
+  
+  Player 3 sets ready:
+    → SET_READY {is_ready: true}
+    ← PLAYER_READY_CHANGE {player_id: P3, is_ready: true}
+  
+  Player 1 (host) starts game:
+    → START_GAME {force_start: false}
+    ← GAME_STARTING {countdown: 10, reason: "ALL_READY"}
+    ... countdown ...
+    ← GAME_STARTED {...initial_state...}
+```
+
 ### 1. Complete Turn Cycle
 ```
 Client 1 (Player 1 turn):
@@ -388,7 +591,14 @@ public record WebSocketMessage {
 
 // Client sends
 public enum ClientMessageType {
-    JOIN_GAME,
+    // Lobby messages
+    SET_READY,
+    CHANGE_SETTINGS,
+    KICK_PLAYER,
+    START_GAME,
+    LOBBY_CHAT,
+    
+    // Game messages  
     PLAYER_ACTION,
     PLAY_CARD,
     COMBAT_RESPONSE,
@@ -398,6 +608,17 @@ public enum ClientMessageType {
 
 // Client receives  
 public enum ServerMessageType {
+    // Lobby messages
+    LOBBY_STATE,
+    PLAYER_JOINED,
+    PLAYER_LEFT,
+    PLAYER_READY_CHANGE,
+    LOBBY_SETTINGS_CHANGE,
+    GAME_STARTING,
+    GAME_STARTED,
+    LOBBY_CHAT_MESSAGE,
+    
+    // Game messages
     GAME_STATE,
     TURN_PHASE_CHANGE,
     COMBAT_START,
@@ -426,20 +647,21 @@ type WebSocketMessage struct {
 ## Next Steps
 
 ### For Server Team:
-1. **Implement WebSocket handler** at `/lobby/{id}/ws`
-2. **Define Go structs** for all message types
-3. **Implement game state management** per §15 of game rules
-4. **Add game logic validation** per rules document
+1. **Extend WebSocket handler** at `/lobby/{id}/ws` to include lobby management
+2. **Define Go structs** for new lobby message types (`LOBBY_STATE`, `PLAYER_JOINED`, etc.)
+3. **Implement lobby state management** (player list, ready status, settings)
+4. **Implement game start transition** from lobby to game state
 5. **Create initial card database** with 10 sample cards
 
 ### For Client Team:
-1. **Extend `Main.cs`** to store JWT after login
-2. **Create `WebSocketClient.cs`** with connection management
-3. **Implement `MessageProtocol.cs`** with C# records for all message types
-4. **Create `Lobby.cs`** for lobby management API calls
-5. **Build basic UI** to test WebSocket connection
+1. **Extend `MessageProtocol.cs`** to include new lobby message types
+2. **Update `WebSocketClient.cs`** to handle lobby events and game start transition
+3. **Create `LobbyManager.cs`** to manage lobby UI and state
+4. **Build lobby UI** showing player list, ready status, chat, and game start controls
+5. **Handle game start transition** from lobby UI to game board
 
 ## Version History
+- **v1.1** (2025-03-25): Added lobby events and management messages
 - **v1.0** (2024-03-13): Initial protocol specification based on Munchkin game rules document v2.0
 
 ## References
