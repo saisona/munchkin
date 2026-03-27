@@ -114,25 +114,22 @@ export PORT=1337
 ```
 ## Running locally
 
-```bash
-go run ./cmd/server
-```
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/munchkin.git
+   cd munchkin
+   ```
 
-Then:
+2. **Install dependencies**
+   ```bash
+   go mod download
+   ```
 
-API available at `http://localhost:1337`
+3. **Run the server**
+   ```bash
+   JWT_SECRET=your_secret_key go run ./cmd/serv
+   ```
 
-Metrics at `http://localhost:1337/metrics`
+## License
 
-Testing philosophy
-
-Services are tested in isolation using fake repositories
-
-Handlers are tested with httptest
-
-Routing can be tested end-to-end via Echo
-
-Middleware is unit-tested separately
-
-No business logic lives in handlers or routers.
-
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
