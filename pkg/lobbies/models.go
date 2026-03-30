@@ -15,11 +15,20 @@ const (
 )
 
 type Lobby struct {
-	ID         string         `json:"lobby_id"   gorm:"primaryKey"`
-	State      LobbyState     `json:"state"`
-	CreatedAt  time.Time      `json:"createAt"`
-	FinishedAt time.Time      `json:"finishedAt"`
-	Players    []*auth.Player `json:"players"    gorm:"many2many:lobby_players"`
+	// Unique lobby identifier.
+	ID string `json:"lobby_id"   gorm:"primaryKey"`
+
+	// Current lobby lifecycle state.
+	State LobbyState `json:"state"`
+
+	// Timestamp when the lobby was created.
+	CreatedAt time.Time `json:"createAt"`
+
+	// Timestamp when the game linked to the lobby finished.
+	FinishedAt time.Time `json:"finishedAt"`
+
+	// Players currently registered in the lobby.
+	Players []*auth.Player `json:"players"    gorm:"many2many:lobby_players"`
 }
 
 // LobbyListItem represents a lobby entry in a lobby list.

@@ -9,6 +9,7 @@ import (
 
 type GameRoom struct {
 	lobbyID string
+	onStop  func(string)
 
 	// Channels
 	joinCh  chan *PlayerConn
@@ -23,9 +24,11 @@ type GameRoom struct {
 func NewGameRoom(
 	lobbyID string,
 	initialState *GameState,
+	onStop func(string),
 ) *GameRoom {
 	return &GameRoom{
 		lobbyID: lobbyID,
+		onStop:  onStop,
 		joinCh:  make(chan *PlayerConn),
 		leaveCh: make(chan string),
 		cmdCh:   make(chan Command, 32),
@@ -110,6 +113,7 @@ func (r *GameRoom) handleCommand(cmd Command) {
 func (r *GameRoom) handleJoin(p *PlayerConn) {
 	// Register player
 	r.players[p.PlayerID] = p
+	r.state.AddPlayer(NewPlayer(p.PlayerID, p.PlayerID))
 	telemetry.PlayersConnected.Inc()
 
 	logger.Info(
@@ -150,8 +154,20 @@ func (r *GameRoom) Join(p *PlayerConn) {
 	r.joinCh <- p
 }
 
+func (r *GameRoom) Leave(playerID string) {
+	r.leaveCh <- playerID
+}
+
+func (r *GameRoom) Submit(cmd Command) {
+	r.cmdCh <- cmd
+}
+
 func (r *GameRoom) handleLeave(playerID string) {
+	if player, ok := r.players[playerID]; ok {
+		close(player.Send)
+	}
 	delete(r.players, playerID)
+	r.state.RemovePlayer(playerID)
 	telemetry.PlayersDisconnected.Inc()
 
 	r.broadcast(PlayerLeftEvent{
@@ -171,6 +187,9 @@ func (r *GameRoom) handleLeave(playerID string) {
 
 func (r *GameRoom) shutdown() {
 	r.getLogger().Info("game room shutting down")
+	if r.onStop != nil {
+		r.onStop(r.lobbyID)
+	}
 }
 
 func (r *GameRoom) broadcast(evt Event) {
@@ -192,5 +211,9 @@ func (r *GameRoom) broadcastExcept(evt Event, exceptPlayerID string) {
 
 func (r *GameRoom) sendTo(playerID string, evt Event) {
 	r.getLogger().With(slog.String("evtType", evt.EventType())).Info("sending event to sender")
-	r.players[playerID].Send <- evt
+	player, ok := r.players[playerID]
+	if !ok {
+		return
+	}
+	player.Send <- evt
 }

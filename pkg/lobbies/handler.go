@@ -45,13 +45,13 @@ func NewLobbyHandler(svc *Service, gh game.GameHub) Handler {
 }
 
 // HandleNewLobby godoc
-// @Summary Create a new lobby
-// @Description Create a new game lobby and initialize its game room for the authenticated player.
+// @Summary Create lobby
+// @Description Creates a new lobby for the authenticated player and initializes the in-memory game room.
 // @Security BearerAuth
 // @Tags lobby
 // @Produce json
-// @Success 201 {object} LobbyCreationResponse "Lobby successfully created"
-// @Failure 400 {object} LobbyCreationResponse "Invalid request or unknown lobby"
+// @Success 201 {object} LobbyCreationResponse "Lobby created"
+// @Failure 400 {object} LobbyCreationResponse "Invalid request"
 // @Failure 500 {string} string "Internal server error"
 // @Router /lobby [post]
 func (h Handler) HandleNewLobby(c echo.Context) error {
@@ -72,12 +72,9 @@ func (h Handler) HandleNewLobby(c echo.Context) error {
 	// TODO: better handle creation of the playerDTO when creating the ROOM
 	// 1. create the Player DTO
 	// 2. pre-load or not his hand
-	_, errCreateRoom := h.gh.CreateRoom(lobbyID, game.NewGameState(gameStateID, []*game.Player{{
-		ID:    playerID,
-		Name:  playerID,
-		Score: 0,
-		Hand:  []game.Card{{Name: "fake_card", ID: "fake_card_id"}},
-	}}))
+	_, errCreateRoom := h.gh.CreateRoom(lobbyID, game.NewGameState(gameStateID, []*game.Player{
+		game.NewPlayer(playerID, playerID),
+	}))
 	if errCreateRoom != nil {
 		return errCreateRoom
 	}
@@ -90,13 +87,14 @@ func (h Handler) HandleNewLobby(c echo.Context) error {
 }
 
 // HandleStartGame godoc
-// @Summary Start a game
+// @Summary Start lobby game
 // @Security BearerAuth
-// @Description Start the game associated with a lobby.
-// @Tags game
+// @Description Marks the lobby as started and transitions it into the in-game state.
+// @Tags lobby
 // @Param id path string true "Lobby ID"
-// @Success 200
+// @Success 200 "Game started"
 // @Failure 400 {object} LobbyCreationResponse "Missing lobby ID or invalid lobby"
+// @Failure 404 {string} string "Lobby not found"
 // @Failure 500 {string} string "Internal server error"
 // @Router /lobby/{id}/start [post]
 func (h Handler) HandleStartGame(c echo.Context) error {
@@ -125,14 +123,16 @@ func (h Handler) HandleStartGame(c echo.Context) error {
 }
 
 // HandleJoinGame godoc
-// @Summary Join a game
+// @Summary Join lobby
 // @Security BearerAuth
-// @Description Join an existing game lobby as the authenticated player.
-// @Tags game
+// @Description Adds the authenticated player to an existing lobby before the game starts.
+// @Tags lobby
 // @Param id path string true "Lobby ID"
-// @Success 200 {string} string "Successfully joined the game"
+// @Success 200 {string} string "Successfully joined the lobby"
+// @Failure 304 {string} string "Player already in lobby"
 // @Failure 400 {string} string "Missing lobby ID or invalid request"
 // @Failure 404 {string} string "Lobby not found"
+// @Failure 423 {string} string "Lobby is full"
 // @Failure 500 {string} string "Internal server error"
 // @Router /lobby/{id}/join [post]
 func (h Handler) HandleJoinGame(c echo.Context) error {
@@ -155,9 +155,9 @@ func (h Handler) HandleJoinGame(c echo.Context) error {
 }
 
 // GetAllLobbies godoc
-// @Summary Get all lobbies
+// @Summary List all lobbies
 // @Security BearerAuth
-// @Description Retrieve all lobbies without pagination.
+// @Description Returns the full lobby collection without pagination. Intended mainly for administration or debugging.
 // @Tags lobby
 // @Produce json
 // @Success 200 {array} LobbyListItem "List of lobbies"
@@ -172,14 +172,15 @@ func (h Handler) GetAllLobbies(c echo.Context) error {
 }
 
 // DeleteLobby godoc
-// @Summary Get all lobbies
+// @Summary Delete lobby
 // @Security BearerAuth
-// @Description Delete a specified lobby.
+// @Description Deletes a lobby by identifier.
 // @Tags lobby
 // @Produce json
+// @Param id path string true "Lobby ID"
 // @Success 204 "When deleting a lobby, a 204 NoContent is received"
-// @Failure 404 {string} string "Lobby Not Found"
-// @Failure 401 {string} string ""
+// @Failure 401 {string} string "Unauthorized"
+// @Failure 404 {string} string "Lobby not found"
 // @Router /lobby/{id} [delete]
 func (h Handler) DeleteLobby(c echo.Context) error {
 	if err := h.s.repo.Delete(c.Request().Context(), c.Param("id")); err != nil {
@@ -209,7 +210,7 @@ type LobbyListResponse struct {
 // ListLobbies godoc
 // @Summary List lobbies
 // @Security BearerAuth
-// @Description Retrieve a paginated list of lobbies for the lobby selection scene (Game Endpoint).
+// @Description Retrieves a paginated lobby list for the lobby selection screen.
 // @Tags lobby
 // @Produce json
 // @Param limit query int false "Maximum number of items to return" default(20)

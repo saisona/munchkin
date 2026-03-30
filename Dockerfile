@@ -32,7 +32,7 @@ RUN chown -R bot:appgrp /usr/app
 # Switch to 'appuser'
 USER bot
 
-COPY cmd /usr/app/cmd
+COPY cmd/server /usr/app/cmd
 COPY pkg /usr/app/pkg
 COPY docs /usr/app/docs
 

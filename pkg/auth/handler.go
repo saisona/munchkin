@@ -30,14 +30,14 @@ func NewAuthHandler(svc *Service) Handler {
 }
 
 // Login godoc
-// @Summary Authenticate a user
-// @Description Authenticate a user using username and password and return a JWT token.
+// @Summary Log in a player
+// @Description Authenticates a player using username and password and returns a JWT bearer token.
 // @Tags auth
 // @Accept json
 // @Produce json
-// @Param request body AuthRequest true "Authentication credentials"
-// @Success 200 {object} AuthResponse "Authentication successful"
-// @Failure 400 {string} string "Invalid credentials or malformed request"
+// @Param request body AuthRequest true "Login credentials"
+// @Success 200 {object} AuthResponse "JWT bearer token"
+// @Failure 400 {string} string "Malformed request or invalid credentials"
 // @Failure 500 {string} string "Internal server error"
 // @Router /auth/login [post]
 func (h *Handler) Login(c echo.Context) error {
@@ -70,14 +70,15 @@ func (h *Handler) Login(c echo.Context) error {
 }
 
 // Register godoc
-// @Summary Register a new user
-// @Description Register a new user with username and password and return a JWT token.
+// @Summary Register a new player
+// @Description Creates a new player account and returns a JWT bearer token for immediate authenticated use.
 // @Tags auth
 // @Accept json
 // @Produce json
 // @Param request body AuthRequest true "Registration credentials"
-// @Success 200 {object} AuthResponse "Registration successful"
-// @Failure 400 {string} string "Invalid request or user already exists"
+// @Success 200 {object} AuthResponse "JWT bearer token"
+// @Failure 400 {string} string "Malformed request"
+// @Failure 409 {string} string "Username already taken"
 // @Failure 500 {string} string "Internal server error"
 // @Router /auth/register [post]
 func (h *Handler) Register(c echo.Context) error {

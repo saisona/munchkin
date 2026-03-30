@@ -3,7 +3,6 @@ logging {
   write_to = [loki.write.local.receiver]
 }
 
-
 tracing {
   sampling_fraction = 0.1
 }

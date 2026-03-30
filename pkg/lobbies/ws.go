@@ -23,14 +23,15 @@ var upgrader = websocket.Upgrader{
 
 // GameWS godoc
 //
-// @Summary      Join lobby WebSocket
-// @Description  Establish a WebSocket connection for a lobby
-// @Tags         lobby
-// @Param        id   path      string  true  "Lobby ID"
-// @Success      101  {string}  string "Switching Protocols"
-// @Failure      500
-// @Router       /lobby/{id}/ws [get]
-// @Security     BearerAuth
+// @Summary Connect lobby WebSocket
+// @Description Upgrades the HTTP connection to WebSocket for real-time lobby and game events. Authentication currently relies on the JWT provided as the `token` query parameter.
+// @Tags lobby
+// @Param id path string true "Lobby ID"
+// @Param token query string true "JWT access token used to authenticate the WebSocket connection"
+// @Success 101 {string} string "Switching Protocols"
+// @Failure 404 {string} string "Lobby not found"
+// @Failure 500 {string} string "Internal server error"
+// @Router /lobby/{id}/ws [get]
 func (h *Handler) GameWS(c echo.Context) error {
 	lobbyID := c.Param("id")
 	playerID := c.Get("playerID").(string)
@@ -38,20 +39,25 @@ func (h *Handler) GameWS(c echo.Context) error {
 
 	room, ok := h.gh.GetRoom(lobbyID)
 	if !ok {
-
 		l, err := h.s.repo.Find(c.Request().Context(), lobbyID)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUnknownLobby
-		} else {
-			// TODO: handle rebuild the room
-			fmt.Println("handle room")
-			gameStateName := fmt.Sprintf("gs-%s", l.ID)
-			gm, err := h.gh.CreateRoom(lobbyID, game.NewGameState(gameStateName, []*game.Player{}))
-			if err != nil {
-				return err
-			}
-			room = gm
 		}
+		if err != nil {
+			return err
+		}
+
+		players := make([]*game.Player, 0, len(l.Players))
+		for _, lobbyPlayer := range l.Players {
+			players = append(players, game.NewPlayer(lobbyPlayer.ID, lobbyPlayer.Username))
+		}
+
+		gameStateName := fmt.Sprintf("gs-%s", l.ID)
+		gm, err := h.gh.CreateRoom(lobbyID, game.NewGameState(gameStateName, players))
+		if err != nil {
+			return err
+		}
+		room = gm
 	}
 
 	conn, err := upgrader.Upgrade(

@@ -1,6 +1,7 @@
 package game
 
 import (
+	"encoding/json"
 	"log/slog"
 	"os"
 
@@ -54,24 +55,55 @@ func (p *PlayerConn) WriteLoop() {
 func (p *PlayerConn) ReadLoop(room *GameRoom) {
 	logger.With(slog.String("playerID", p.PlayerID)).
 		Debug("pConn started waiting for events")
-	close := p.Conn.CloseHandler()
-	defer close(200, "normal CLOSE")
+	defer p.Conn.Close()
+	defer room.Leave(p.PlayerID)
 	for {
-		var cmd Command
-		msgType, data, err := p.Conn.ReadMessage()
+		_, data, err := p.Conn.ReadMessage()
 		if err != nil {
 			logger.With(slog.String("error", err.Error())).Error("p.Conn.ReadMessage")
+			break
 		}
-		logger.With(slog.Int("msgType", msgType), slog.String("data", string(data))).
+		logger.With(slog.String("data", string(data))).
 			Debug("got message from WS")
-		if err := p.Conn.ReadJSON(&cmd); err != nil {
+		cmd, err := DecodeCommandMessage(p.PlayerID, data)
+		if err != nil {
 			logger.With(
 				slog.String("playerID", p.PlayerID),
 				slog.String("lobbyID", p.Room.lobbyID),
 				slog.String("error", err.Error()),
-			).Error("read from WS failed")
-			break
+			).Warn("read from WS failed")
+			room.sendTo(p.PlayerID, CommandRejectedEvent{
+				BaseEvent: BaseEvent{
+					Type: "ERROR",
+				},
+				CommandType: "UNKNOWN",
+				Reason:      err.Error(),
+			})
+			continue
 		}
-		room.handleCommand(cmd)
+		room.Submit(cmd)
+	}
+}
+
+func DecodeCommandMessage(playerID string, payload []byte) (Command, error) {
+	var envelope CommandEnvelope
+	if err := json.Unmarshal(payload, &envelope); err != nil {
+		return nil, err
+	}
+
+	switch envelope.Type {
+	case MessageTypePlayerAction:
+		var data PlayerActionPayload
+		if err := json.Unmarshal(envelope.Data, &data); err != nil {
+			return nil, err
+		}
+
+		return PlayerActionCommand{
+			PlayerID:  playerID,
+			Action:    data.Action,
+			Timestamp: data.Timestamp,
+		}, nil
+	default:
+		return nil, ErrUnknownCommand
 	}
 }
