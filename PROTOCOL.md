@@ -1,14 +1,14 @@
 # Munchkin Game WebSocket Protocol Specification
 
 ## Overview
-This document defines the WebSocket message protocol for real-time gameplay communication between the Munchkin game server and clients. The WebSocket endpoint is `/lobby/{id}/ws` (authenticated with JWT).
+This document defines the WebSocket message protocol for real-time gameplay communication between the Munchkin game server and clients. The current WebSocket endpoint is `/lobby/{id}/ws?token=<jwt>`.
 
 ## Connection Lifecycle
 1. **Authentication**: Client authenticates via HTTP `POST /auth/login` to get JWT
-2. **Connection**: Client connects to `ws://{host}:1337/lobby/{id}/ws` with JWT in Authorization header
+2. **Connection**: Client connects to `ws://{host}:1337/lobby/{id}/ws?token=<jwt>`
 3. **Game Start**: After all players join, host calls `POST /lobby/{id}/start` to begin game
 4. **Gameplay**: Real-time messages flow via WebSocket
-5. **Disconnection**: Client reconnects using same JWT, receives full game state
+5. **Disconnection**: Client reconnects using same JWT while the in-memory room still exists. Recovery after room loss is not supported in this MVP.
 
 ## Message Format
 All messages are JSON objects with a `type` field and `data` payload:
@@ -23,14 +23,6 @@ All messages are JSON objects with a `type` field and `data` payload:
 
 ### Game Actions
 ```json
-// Join the game (after WebSocket connection)
-{
-  "type": "JOIN_GAME",
-  "data": {
-    "player_id": "uuid-from-auth"
-  }
-}
-
 // Player takes an action during their turn
 {
   "type": "PLAYER_ACTION",
@@ -88,7 +80,7 @@ All messages are JSON objects with a `type` field and `data` payload:
 
 ### Game State Updates
 ```json
-// Full game state (on connection or major change)
+// Full game state (on connection and after important room updates)
 {
   "type": "GAME_STATE",
   "data": {
