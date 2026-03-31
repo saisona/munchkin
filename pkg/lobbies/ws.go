@@ -52,6 +52,13 @@ func (h *Handler) GameWS(c echo.Context) error {
 			players = append(players, game.NewPlayer(lobbyPlayer.ID, lobbyPlayer.Username))
 		}
 
+		if l.State == StateInGame {
+			return echo.NewHTTPError(
+				http.StatusConflict,
+				"in-memory game room is unavailable for this started lobby; reconnect recovery is not supported in this MVP",
+			)
+		}
+
 		gameStateName := fmt.Sprintf("gs-%s", l.ID)
 		gm, err := h.gh.CreateRoom(lobbyID, game.NewGameState(gameStateName, players))
 		if err != nil {

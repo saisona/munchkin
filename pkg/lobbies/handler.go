@@ -116,10 +116,34 @@ func (h Handler) HandleStartGame(c echo.Context) error {
 		return c.JSON(400, lcr)
 	}
 
+	lobby, errFindLobby := h.s.repo.Find(ctx, lobbyID)
+	if errFindLobby != nil {
+		return mapRegisterError(errFindLobby)
+	}
+
+	players := make([]*game.Player, 0, len(lobby.Players))
+	for _, player := range lobby.Players {
+		players = append(players, game.NewPlayer(player.ID, player.Username))
+	}
+
+	room, ok := h.gh.GetRoom(lobbyID)
+	if !ok {
+		gameStateID := fmt.Sprintf("gs-%s", lobby.ID)
+		createdRoom, errCreateRoom := h.gh.CreateRoom(lobbyID, game.NewGameState(gameStateID, players))
+		if errCreateRoom != nil {
+			return errCreateRoom
+		}
+		room = createdRoom
+	}
+
+	if err := room.Start(players); err != nil {
+		return err
+	}
+
 	defaultCtx := context.Background()
 	go h.s.StopGame(defaultCtx, lobbyID)
 	telemetry.LobbyActive.Inc()
-	return nil
+	return c.NoContent(http.StatusOK)
 }
 
 // HandleJoinGame godoc

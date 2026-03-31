@@ -13,7 +13,7 @@ type LobbyCreationResponse struct {
 
 	// Optional error message when the request fails.
 	// example: requested lobby not found or game already started
-	Error   string `json:"error,omitempty"`
+	Error string `json:"error,omitempty"`
 }
 
 type LobbyRepository interface {
