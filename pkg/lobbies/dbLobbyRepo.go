@@ -49,8 +49,9 @@ func (dlr DBLobbyRepo) Fetch(ctx context.Context) ([]Lobby, error) {
 // Find implements [LobbyRepository].
 func (dlr DBLobbyRepo) Find(ctx context.Context, lobbyID string) (*Lobby, error) {
 	ctxTracer, span := dlr.tracer.Start(ctx, "repo.find")
+	defer span.End()
 	var l Lobby
-	tx := dlr.db.WithContext(ctxTracer).First(&l, "ID = ?", lobbyID)
+	tx := dlr.db.WithContext(ctxTracer).Preload("Players").First(&l, "ID = ?", lobbyID)
 	if tx.Error != nil {
 		span.RecordError(tx.Error, trace.WithStackTrace(true))
 		return nil, tx.Error

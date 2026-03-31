@@ -23,6 +23,7 @@ Implemented today:
 - health and readiness probes
 - Swagger/OpenAPI source annotations
 - WebSocket room connection
+- game start setup with initial dealing
 - initial game snapshot and first turn actions
 - unit tests around the game core
 - a Go smoke test for end-to-end validation
@@ -110,6 +111,16 @@ Important:
 - this differs from the rest of the HTTP API, which uses `Authorization: Bearer <jwt>`
 
 The current protocol reference lives in [PROTOCOL.md](/Users/inarix-alexandre-saison/Workspace/Dev/PERSO/Munchin/munchin-api/PROTOCOL.md).
+
+Current MVP gameplay slice over WebSocket:
+- start game from lobby
+- receive initial `game_snapshot`
+- send `PLAYER_ACTION`
+- open the door
+- reveal a dungeon card
+- acknowledge a revealed card placeholder when needed
+- discard during charity with `DISCARD_FOR_CHARITY`
+- move to the next turn phase with validation
 
 ---
 
@@ -202,9 +213,16 @@ It validates the happy path:
 - register player
 - create lobby
 - list lobbies
+- start game
 - connect to WebSocket
 - read initial snapshot
-- send first `PLAYER_ACTION`
+- play through a first MVP turn:
+- `OPEN_DOOR`
+- optional `ACK_REVEALED_CARD`
+- `LOOK_FOR_TROUBLE`
+- `LOOT_ROOM`
+- optional `DISCARD_FOR_CHARITY`
+- `END_TURN`
 
 Run it with:
 
