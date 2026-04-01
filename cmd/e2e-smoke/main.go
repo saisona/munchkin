@@ -53,34 +53,61 @@ type wsEnvelope struct {
 	Data json.RawMessage `json:"data,omitempty"`
 }
 
+type discardForCharityPayload struct {
+	CardIDs []string `json:"cardIds"`
+}
+
 type playerActionPayload struct {
 	Action    string    `json:"action"`
 	Timestamp time.Time `json:"timestamp"`
 }
 
+type gameStateView struct {
+	GameID        string `json:"gameId"`
+	Turn          int    `json:"turn"`
+	Phase         string `json:"phase"`
+	Version       int    `json:"version"`
+	Started       bool   `json:"started"`
+	CurrentPlayer string `json:"currentPlayerId"`
+	Decks         struct {
+		DungeonRemaining  int `json:"dungeonRemaining"`
+		TreasureRemaining int `json:"treasureRemaining"`
+		DungeonDiscard    int `json:"dungeonDiscard"`
+		TreasureDiscard   int `json:"treasureDiscard"`
+	} `json:"decks"`
+	RevealedDoor *struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+		Kind string `json:"kind"`
+	} `json:"revealedDoor"`
+	Combat *struct {
+		Monster struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+			Kind string `json:"kind"`
+		} `json:"monster"`
+		Pending bool `json:"pending"`
+	} `json:"combat"`
+	Players []struct {
+		ID        string `json:"id"`
+		Name      string `json:"name"`
+		IsActive  bool   `json:"isActive"`
+		HandCount int    `json:"handCount"`
+	} `json:"players"`
+	You *struct {
+		Hand []struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"hand"`
+	} `json:"you"`
+}
+
 type gameSnapshot struct {
-	Type      string `json:"type"`
-	GameID    string `json:"gameId"`
-	Timestamp string `json:"timestamp"`
-	Version   int    `json:"version"`
-	State     struct {
-		GameID        string `json:"gameId"`
-		Turn          int    `json:"turn"`
-		Phase         string `json:"phase"`
-		Version       int    `json:"version"`
-		CurrentPlayer string `json:"currentPlayerId"`
-		Players       []struct {
-			ID       string `json:"id"`
-			Name     string `json:"name"`
-			IsActive bool   `json:"isActive"`
-		} `json:"players"`
-		You *struct {
-			Hand []struct {
-				ID   string `json:"id"`
-				Name string `json:"name"`
-			} `json:"hand"`
-		} `json:"you"`
-	} `json:"state"`
+	Type      string        `json:"type"`
+	GameID    string        `json:"gameId"`
+	Timestamp string        `json:"timestamp"`
+	Version   int           `json:"version"`
+	State     gameStateView `json:"state"`
 }
 
 type turnPhaseChanged struct {
@@ -90,6 +117,16 @@ type turnPhaseChanged struct {
 	Version   int    `json:"version"`
 	PlayerID  string `json:"playerID"`
 	Phase     string `json:"phase"`
+}
+
+type cardRevealed struct {
+	Type     string `json:"type"`
+	PlayerID string `json:"playerID"`
+	Card     struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+		Kind string `json:"kind"`
+	} `json:"card"`
 }
 
 type commandRejected struct {
@@ -130,6 +167,11 @@ func main() {
 	}
 	logStep("list lobbies ok", "items=%d", len(listing.Items))
 
+	logStep("start lobby game")
+	if err := startLobby(ctx, client, baseURL, token, lobbyID); err != nil {
+		fatalf("start game failed: %v", err)
+	}
+
 	logStep("connect websocket")
 	conn, err := connectWS(baseURL, lobbyID, token)
 	if err != nil {
@@ -144,10 +186,11 @@ func main() {
 	}
 	logStep(
 		"snapshot received",
-		"phase=%s currentPlayer=%s players=%d",
+		"phase=%s currentPlayer=%s players=%d hand=%d",
 		snapshot.State.Phase,
 		snapshot.State.CurrentPlayer,
 		len(snapshot.State.Players),
+		len(snapshot.State.You.Hand),
 	)
 
 	logStep("send OPEN_DOOR action")
@@ -156,8 +199,77 @@ func main() {
 	}
 
 	logStep("wait for action result")
-	if err := readActionResult(conn); err != nil {
+	state, err := readActionResult(conn)
+	if err != nil {
 		fatalf("action result failed: %v", err)
+	}
+
+	if state.Combat != nil && state.Combat.Pending {
+		logStep("acknowledge revealed monster")
+		if err := sendAcknowledgeRevealedCard(conn); err != nil {
+			fatalf("failed to send ACK_REVEALED_CARD: %v", err)
+		}
+
+		state, err = readActionResult(conn)
+		if err != nil {
+			fatalf("failed to resolve revealed monster: %v", err)
+		}
+	}
+
+	if state.Phase == "look_for_trouble" {
+		logStep("send LOOK_FOR_TROUBLE action")
+		if err := sendPlayerAction(conn, "LOOK_FOR_TROUBLE"); err != nil {
+			fatalf("failed to send LOOK_FOR_TROUBLE: %v", err)
+		}
+
+		state, err = readActionResult(conn)
+		if err != nil {
+			fatalf("look for trouble failed: %v", err)
+		}
+	}
+
+	if state.Phase == "loot_room" {
+		logStep("send LOOT_ROOM action")
+		if err := sendPlayerAction(conn, "LOOT_ROOM"); err != nil {
+			fatalf("failed to send LOOT_ROOM: %v", err)
+		}
+
+		state, err = readActionResult(conn)
+		if err != nil {
+			fatalf("loot room failed: %v", err)
+		}
+	}
+
+	if state.Phase == "charity" && state.You != nil && len(state.You.Hand) > 5 {
+		discardCount := len(state.You.Hand) - 5
+		cardIDs := make([]string, 0, discardCount)
+		for i := 0; i < discardCount; i++ {
+			cardIDs = append(cardIDs, state.You.Hand[i].ID)
+		}
+
+		logStep("discard for charity", "count=%d", discardCount)
+		if err := sendDiscardForCharity(conn, cardIDs); err != nil {
+			fatalf("failed to send charity discard: %v", err)
+		}
+
+		state, err = readActionResult(conn)
+		if err != nil {
+			fatalf("charity discard failed: %v", err)
+		}
+	}
+
+	logStep("send END_TURN action")
+	if err := sendPlayerAction(conn, "END_TURN"); err != nil {
+		fatalf("failed to send END_TURN: %v", err)
+	}
+
+	state, err = readActionResult(conn)
+	if err != nil {
+		fatalf("end turn failed: %v", err)
+	}
+
+	if state.Phase != "open_door" {
+		fatalf("expected next turn to begin at open_door, got %q", state.Phase)
 	}
 
 	logStep("smoke test completed successfully")
@@ -224,6 +336,25 @@ func listLobbies(
 	return &resp, nil
 }
 
+func startLobby(
+	ctx context.Context,
+	client *http.Client,
+	baseURL string,
+	token string,
+	lobbyID string,
+) error {
+	return doJSON(
+		ctx,
+		client,
+		http.MethodPost,
+		baseURL+"/lobby/"+lobbyID+"/start",
+		token,
+		nil,
+		nil,
+		http.StatusOK,
+	)
+}
+
 func connectWS(baseURL string, lobbyID string, token string) (*websocket.Conn, error) {
 	wsURL, err := toWebSocketURL(baseURL + "/lobby/" + lobbyID + "/ws?token=" + token)
 	if err != nil {
@@ -274,6 +405,18 @@ func readSnapshot(conn *websocket.Conn) (*gameSnapshot, error) {
 	if snapshot.Type != "game_snapshot" {
 		return nil, fmt.Errorf("expected game_snapshot event, got %q", snapshot.Type)
 	}
+	if !snapshot.State.Started {
+		return nil, fmt.Errorf("expected started game snapshot")
+	}
+	if snapshot.State.Phase != "open_door" {
+		return nil, fmt.Errorf("expected open_door phase, got %q", snapshot.State.Phase)
+	}
+	if snapshot.State.You == nil {
+		return nil, fmt.Errorf("expected private player snapshot")
+	}
+	if len(snapshot.State.You.Hand) != 8 {
+		return nil, fmt.Errorf("expected initial hand size 8")
+	}
 
 	return &snapshot, nil
 }
@@ -289,42 +432,81 @@ func sendPlayerAction(conn *websocket.Conn, action string) error {
 	return conn.WriteJSON(payload)
 }
 
-func readActionResult(conn *websocket.Conn) error {
-	if err := conn.SetReadDeadline(time.Now().Add(wsReadTimeout)); err != nil {
-		return err
+func sendDiscardForCharity(conn *websocket.Conn, cardIDs []string) error {
+	payload := wsEnvelope{
+		Type: "DISCARD_FOR_CHARITY",
+		Data: mustMarshalJSON(discardForCharityPayload{
+			CardIDs: cardIDs,
+		}),
 	}
+	return conn.WriteJSON(payload)
+}
 
-	_, payload, err := conn.ReadMessage()
-	if err != nil {
-		return err
+func sendAcknowledgeRevealedCard(conn *websocket.Conn) error {
+	payload := wsEnvelope{
+		Type: "ACK_REVEALED_CARD",
+		Data: mustMarshalJSON(map[string]any{}),
 	}
+	return conn.WriteJSON(payload)
+}
 
-	var raw map[string]any
-	if err := json.Unmarshal(payload, &raw); err != nil {
-		return fmt.Errorf("invalid action result payload: %w", err)
-	}
-
-	eventType, _ := raw["type"].(string)
-	switch eventType {
-	case "TURN_PHASE_CHANGE":
-		var evt turnPhaseChanged
-		if err := json.Unmarshal(payload, &evt); err != nil {
-			return err
+func readActionResult(conn *websocket.Conn) (*gameStateView, error) {
+	for {
+		if err := conn.SetReadDeadline(time.Now().Add(wsReadTimeout)); err != nil {
+			return nil, err
 		}
-		logStep("phase changed", "playerID=%s phase=%s", evt.PlayerID, evt.Phase)
-		return nil
-	case "command_rejected", "ERROR":
-		var evt commandRejected
-		if err := json.Unmarshal(payload, &evt); err != nil {
-			return err
+
+		_, payload, err := conn.ReadMessage()
+		if err != nil {
+			return nil, err
 		}
-		return fmt.Errorf("command rejected: %s", evt.Reason)
-	default:
-		return fmt.Errorf(
-			"unexpected websocket event type: %q payload=%s",
-			eventType,
-			string(payload),
-		)
+
+		var raw map[string]any
+		if err := json.Unmarshal(payload, &raw); err != nil {
+			return nil, fmt.Errorf("invalid action result payload: %w", err)
+		}
+
+		eventType, _ := raw["type"].(string)
+		switch eventType {
+		case "card_revealed":
+			var evt cardRevealed
+			if err := json.Unmarshal(payload, &evt); err != nil {
+				return nil, err
+			}
+			logStep("card revealed", "name=%s kind=%s", evt.Card.Name, evt.Card.Kind)
+		case "TURN_PHASE_CHANGE":
+			var evt turnPhaseChanged
+			if err := json.Unmarshal(payload, &evt); err != nil {
+				return nil, err
+			}
+			logStep("phase changed", "playerID=%s phase=%s", evt.PlayerID, evt.Phase)
+		case "game_snapshot":
+			var evt struct {
+				Type  string        `json:"type"`
+				State gameStateView `json:"state"`
+			}
+			if err := json.Unmarshal(payload, &evt); err != nil {
+				return nil, err
+			}
+			handSize := 0
+			if evt.State.You != nil {
+				handSize = len(evt.State.You.Hand)
+			}
+			logStep("snapshot update received", "phase=%s hand=%d", evt.State.Phase, handSize)
+			return &evt.State, nil
+		case "command_rejected", "ERROR":
+			var evt commandRejected
+			if err := json.Unmarshal(payload, &evt); err != nil {
+				return nil, err
+			}
+			return nil, fmt.Errorf("command rejected: %s", evt.Reason)
+		default:
+			return nil, fmt.Errorf(
+				"unexpected websocket event type: %q payload=%s",
+				eventType,
+				string(payload),
+			)
+		}
 	}
 }
 
